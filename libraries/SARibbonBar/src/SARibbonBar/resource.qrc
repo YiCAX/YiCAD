@@ -1,0 +1,18 @@
+<RCC>
+    <qresource prefix="/image">
+        <file>resource/ribbonPannelOptionButton.png</file>
+        <file>resource/ArrowDown.svg</file>
+        <file>resource/ArrowMore.png</file>
+        <file>resource/ArrowUp.svg</file>
+        <file>resource/Titlebar_Close.svg</file>
+        <file>resource/Titlebar_Max.svg</file>
+        <file>resource/Titlebar_Min.svg</file>
+        <file>resource/Titlebar_Normal.svg</file>
+        <file>resource/Titlebar_Shade.svg</file>
+        <file>resource/Titlebar_Unshade.svg</file>
+    </qresource>
+    <qresource prefix="/theme">
+        <file>resource/LightTheme.qss</file>
+        <file>resource/DarkTheme.qss</file>
+    </qresource>
+</RCC>

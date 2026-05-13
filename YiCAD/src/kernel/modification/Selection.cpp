@@ -1,0 +1,227 @@
+﻿/*
+ * Copyright (C) 2026 The YiCAD Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/// @file Selection.cpp
+/// @brief 实体选择功能实现，提供单选、全选、窗口选择、图层选择
+
+#include "Selection.h"
+
+#include "DmLine.h"
+#include "Information.h"
+#include "DmPolyline.h"
+#include "DmEntity.h"
+#include "DmDocument.h"
+#include "DmLayer.h"
+#include "DmSolid.h"
+#include "DmTriangle.h"
+
+Selection::Selection(DmDocument* doc, GuiDocumentView* docView)
+{
+	this->pDocument = doc;
+	this->docView = docView;
+}
+
+/// @brief 切换单个实体的选中状态
+/// @param e 实体指针
+void Selection::selectSingle(DmEntity* e)
+{
+	if (e && (!(e->getLayer() && e->getLayer()->isLocked())))
+	{
+		e->toggleSelected();
+
+		if (docView)
+		{
+			docView->specifyDocumentModified();
+			docView->redraw();
+		}
+	}
+}
+
+/// @brief 选中/取消选中所有实体
+/// @param select true为选中，false为取消选中
+void Selection::selectAll(bool select)
+{
+	auto table = pDocument->getEntityTable();
+	for (auto e : *table)
+	{
+		if (e->isVisible())
+		{
+			e->setSelected(select);
+		}
+	}
+
+	if (docView)
+	{
+		docView->specifyDocumentModified();
+		docView->redraw();
+	}
+}
+
+/// @brief 根据窗口选择实体
+/// @param v1 窗口角点1
+/// @param v2 窗口角点2
+/// @param select true为选择，false为取消选择
+/// @param cross true为从右到左选择（有相交即选择），false为从左到右选择（完全框住才选择）
+/// @param entityTypeList 限定实体类型列表
+void Selection::selectWindow(const DmVector& v1, const DmVector& v2, bool select, bool cross, std::list<DM::EntityType> const& entityTypeList)
+{
+	DmVector min(std::min(v1.x, v2.x), std::min(v1.y, v2.y));
+	DmVector max(std::max(v1.x, v2.x), std::max(v1.y, v2.y));
+	std::vector<DmEntity*> entities;
+	pDocument->searchEntities(min, max, entities, false);
+
+	std::list<DM::EntityType>::size_type typeSize = entityTypeList.size();
+	bool included = false;
+	for (auto e : entities)
+	{
+		included = false;
+		if (typeSize != 0)
+		{
+			if (std::find(entityTypeList.begin(), entityTypeList.end(), e->getEntityType()) == entityTypeList.end())
+			{
+				continue;
+			}
+		}
+
+		if (!e->isVisible())
+		{
+			continue;
+		}
+
+		// 完全包含
+		if (e->isInWindow(v1, v2))
+		{
+			included = true;
+		}
+		// 从右往左选
+		else if (cross)
+		{
+			DmEntityContainer l;
+			l.addRectangle(v1, v2);
+			DmVectorSolutions sol;
+
+			auto subEntities = e->getSubEntities();
+			// 直线，圆弧，Solid，样条线等基本实体
+			if (subEntities.size() == 0)
+			{
+				if (e->getEntityType() == DM::EntityTriangle)
+				{
+					included = static_cast<DmTriangle*>(e)->isInCrossWindow(v1, v2);
+				}
+				else if (e->getEntityType() == DM::EntitySolid)
+				{
+					included = static_cast<DmSolid*>(e)->isInCrossWindow(v1, v2);
+				}
+				else
+				{
+					for (auto line : l)
+					{
+						sol = Information::getIntersection(e, line, true);
+						if (sol.hasValid())
+						{
+							included = true;
+							break;
+						}
+					}
+				}
+			}
+			// 文字等复杂实体，判断子实体是否相交
+			else
+			{
+				for (auto subEnt : subEntities)
+				{
+					if (subEnt->isInWindow(v1, v2))
+					{
+						included = true;
+					}
+					else if (subEnt->getEntityType() == DM::EntityTriangle)
+					{
+						included = static_cast<DmTriangle*>(subEnt)->isInCrossWindow(v1, v2);
+					}
+					else if (subEnt->getEntityType() == DM::EntitySolid)
+					{
+						included = static_cast<DmSolid*>(subEnt)->isInCrossWindow(v1, v2);
+					}
+					else
+					{
+						for (auto line : l)
+						{
+							sol = Information::getIntersection(subEnt, line, true);
+							if (sol.hasValid())
+							{
+								included = true;
+								break;
+							}
+						}
+					}
+
+					if (included)
+					{
+						break;
+					}
+				}
+			}
+		}
+		else
+		{
+			// 非交叉模式，不在窗口内则不选中
+		}
+
+		if (included)
+		{
+			e->setSelected(select);
+		}
+	}
+
+	if (docView)
+	{
+		docView->specifyDocumentModified();
+		docView->redraw();
+	}
+}
+
+/// @brief 选中/取消选中指定图层的所有实体
+/// @param layerName 图层名称
+/// @param select true为选中，false为取消选中
+void Selection::selectLayer(const QString& layerName, bool select)
+{
+	auto table = pDocument->getEntityTable();
+	for (auto en : *table)
+	{
+		if (en && en->isVisible() && en->isSelected() != select && (!(en->getLayer() && en->getLayer()->isLocked())))
+		{
+			DmLayer* l = en->getLayer(true);
+
+			if (l && l->getName() == layerName)
+			{
+				en->setSelected(select);
+			}
+		}
+	}
+
+	if (docView)
+	{
+		docView->specifyDocumentModified();
+		docView->redraw();
+	}
+}
+
+/// @brief 取消选中指定图层的所有实体
+/// @param layerName 图层名称
+void Selection::deselectLayer(QString& layerName)
+{
+	selectLayer(layerName, false);
+}

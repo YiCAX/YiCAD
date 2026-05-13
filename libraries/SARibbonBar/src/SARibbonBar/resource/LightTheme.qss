@@ -1,0 +1,383 @@
+﻿/*
+*** This part of the setting is the style setting of the control 
+*** of qt itself, which can meet the basic needs. There are 
+*** still parts that need to be set to use custom controls.
+*** [2023/0706/WQF]
+*/
+/*Widget*/
+QWidget{
+  background-color: #EFEFEF;
+}
+
+/*QTableWidget*/
+QTableWidget{
+    background-color:#FDFDFD;
+	color: #444444;
+	border:10px solid #C0C2C4;
+}
+
+/*QListWidget*/
+QListWidget{
+    background-color:#FDFDFD;
+	color: #444444;
+	border:1px solid #C0C2C4;
+}
+
+/*QToolButton transparent*/
+QToolButton{
+    border:1px solid transparent;
+    color:#444444;
+    background-color: transparent;
+}
+
+QToolButton::hover {
+    color:#000000;
+    border: 1px solid #DADADA;
+    background-color: #DADADA;
+}
+
+QToolButton:checked
+{
+    border:1px solid #DADADA;
+    color:#000000;
+    background-color:#DADADA;
+}
+
+/*QPushButton FDFDFD*/
+QPushButton{
+    background-color: transparent;
+	border-radius: 3px;
+    border:1px solid transparent;
+    color:#444444;
+
+}
+
+QPushButton::disabled {
+	color: grey;
+}
+
+QPushButton::hover {
+    color:#000000;
+    border: 1px solid #DADADA;
+    background-color: #DADADA;
+}
+
+QPushButton::pressed {
+    color:#444444;
+    border: 1px solid #D9D9D9;
+    background-color: #D9D9D9;
+}
+
+/*
+QPushButton::checked {
+    color:#444444;
+    border: 1px solid #D9D9D9;
+    background-color: #D9D9D9;
+}*/
+
+/*QComboBox*/
+QComboBox{
+    border:1px solid #C0C2C4;
+    color:#444444;
+    background-color:#FDFDFD;
+}
+
+QComboBox::disabled {
+    border:1px solid #C0C2C4;
+    color:white;
+    background-color:#C5C8C9;
+}
+
+QComboBox QAbstractItemView {
+    border: 1px solid #C0C2C4;
+    color: #444444;
+    background-color: #FDFDFD;
+    selection-background-color: #D9D9D9;
+}
+
+QComboBox::down-arrow {
+  image: url(:/image/resource/ArrowDown.svg);
+}
+QComboBox::up-arrow {
+  image: url(:/image/resource/Arrowup.svg);
+}
+
+/*QTextEdit*/
+QTextEdit{
+    background-color:#FDFDFD;
+	color: #444444;
+	border:1px solid #C0C2C4;
+}
+
+/*QLineEdit*/
+QLineEdit{
+    border:1px solid #C0C2C4;
+    color:#444444;
+    background-color:#FDFDFD;
+}
+
+QLineEdit::disabled {
+    border:1px solid #C0C2C4;
+    color:#444444;
+    background-color:#C5C8C9;
+}
+
+/*QSpinBox*/
+QSpinBox{
+    border:1px solid #C0C2C4;
+    color:#444444;
+    background-color:#FDFDFD;
+}
+
+QDoubleSpinBox{
+    border:1px solid #C0C2C4;
+    color:#444444;
+    background-color:#FDFDFD;
+}
+
+QDialogButtonBox{
+    border:1px solid #007AFF;
+    color:#444444;
+    background-color:#007AFF;
+}
+
+
+/*
+*** This part is custom controls.
+*** Most of the controls in this part are related 
+*** to the ribbon.
+*** There are also some controls that require 
+*** additional packaging based on the design UI design.
+*/
+
+/* 图层控件*/
+SARibbonComboBox QPushButton[isLayerNameButton=true],
+SARibbonComboBox QPushButton[isLayerNameButton=true]::hover
+{
+	border: none;
+	background-color: white;
+	color: black
+}
+
+
+/* 当前标签页所有控件设置*/
+QWidget[isCurrentTab=true] > *,
+QWidget[isCurrentTab=true]
+{
+	border-width: 0px ;
+	background-color: white;
+	color: black
+}
+
+/* 非当前标签页所有控件设置*/
+QWidget[isCurrentTab=false] > *,
+QWidget[isCurrentTab=false]
+{
+	border-width: 0px ;
+	background-color: #DADADA;
+	color: black
+}
+
+/*标签页关闭按钮设置 */
+QPushButton[isTabCloseButton=true]
+{
+	size: 15 15;
+	icon: url(:/ribbon/tabbar/close.svg);
+	icon-size: 11px 11px;
+}
+QPushButton[isTabCloseButton=true]:hover
+{
+	size: 15 15;
+	icon: url(:/ribbon/tabbar/close-red.svg);
+	icon-size: 11px 11px;
+}
+
+/*SACloseWindowButton*/
+#SACloseWindowButton {
+  image: url(:/image/resource/Titlebar_Close.svg);
+  background-color: transparent;
+  border:0px solid transparent;
+}
+
+/*SARibbonBarHidePannelButton*/
+#SARibbonBarHidePannelButton {
+  titlebar-shade-icon: url(:/image/resource/Titlebar_Shade.svg);
+  titlebar-unshade-icon: url(:/image/resource/Titlebar_Unshade.svg);
+}
+
+/*SAMinimizeWindowButton*/
+#SAMinimizeWindowButton {
+  image: url(:/image/resource/Titlebar_Min.svg);
+  background-color: transparent;
+  border:0px solid transparent;
+}
+
+/*SAMaximizeWindowButton*/
+#SAMaximizeWindowButton {
+  image:url(:/image/resource/Titlebar_Max.svg);
+  background-color: transparent;
+  border:0px solid transparent;
+  padding: 5px;
+}
+
+#SAMaximizeWindowButton::checked {
+  image:url(:/image/resource/Titlebar_Normal.svg);
+  background-color: transparent;
+  border:0px solid transparent;
+  padding: 5px;
+}
+
+#SAMinimizeWindowButton:pressed,#SAMaximizeWindowButton:pressed {
+  background-color: #DADADA;
+}
+
+#SACloseWindowButton:hover,#SAMinimizeWindowButton:hover,#SAMaximizeWindowButton:hover {
+    border: 1px solid #DADADA;
+    background-color: #DADADA;
+}
+
+/*SARibbonTabBar*/
+SARibbonTabBar{
+    background-color: transparent;
+}
+
+SARibbonTabBar::tab {
+    color:#444444;
+    border:none;
+    background: transparent;
+    margin-top: 0px;
+    margin-right: 0px;
+    margin-left: 6px;
+    margin-bottom: 0px;
+    min-width:60px;
+    max-width:200px;
+    min-height:30px;
+    max-height:30px;
+    padding-left:1px;
+    padding-right:1px;
+    padding-top:1px;
+    padding-bottom:1px;
+}
+
+SARibbonTabBar::tab:selected, SARibbonTabBar::tab:hover {
+  border-top-left-radius: 2px;
+  border-top-right-radius: 2px;
+}
+
+SARibbonTabBar::tab:selected{
+    color: #000000;
+    border: 0px solid #FDFDFD;
+    background: #FDFDFD;
+    border-bottom-color: #FDFDFD;
+}
+
+SARibbonTabBar::tab:hover:!selected{
+    border: 1px solid #D9D9D9;
+    color: #000000;
+	background-color: #D9D9D9;
+}
+
+SARibbonTabBar::tab:!selected {
+    margin-top: 0px;
+}
+
+/*SARibbonButtonGroupWidget*/
+SARibbonButtonGroupWidget{
+  background-color: transparent;
+}
+
+SARibbonButtonGroupWidget > QWidget {
+  background-color: transparent;
+}
+
+SARibbonPannel > SARibbonButtonGroupWidget {
+  border: 0px solid transparent;
+}
+
+/*SARibbonStackedWidget*/
+SARibbonStackedWidget{
+  background-color: #FDFDFD;
+  border: 1px solid #FDFDFD;
+  border-top-width: 0px;
+}
+
+/*QColorDialog*/
+QColorDialog > QPushButton{
+	color: #444444;
+    background-color: #D9D9D9;
+    border-style: outset;
+    border-width: 0px;
+    border-color: #D9D9D9;
+    border-radius: 3px;
+    font: 14px;
+    padding: 10px;
+}
+
+QColorDialog > QPushButton:hover{
+	color: #444444;
+    background-color: #959595;
+    border-style: outset;
+    border-width: 0px;
+    border-color: #959595;
+    border-radius: 3px;
+    font: 14px;
+    padding:10px;
+}
+QDialogButtonBox > QPushButton,
+QColorDialog > QDialogButtonBox > QPushButton, UIDlgSaveOrNewViewport > QDialogButtonBox > QPushButton, 
+QMessageBox > QDialogButtonBox > QPushButton,
+UIDlgOptionsGeneral > QDialogButtonBox > QPushButton,UIDlgOptionsDrawing > QDialogButtonBox > QPushButton
+{
+	border-style: solid;
+	border-width: 1px;
+	border-radius: 3px;
+	color: #444444;
+	padding: 10px;
+	background-color: #D9D9D9;
+}
+QDialogButtonBox > QPushButton:hover,
+QColorDialog > QDialogButtonBox > QPushButton:hover, UIDlgSaveOrNewViewport > QDialogButtonBox > QPushButton:hover,
+QMessageBox > QDialogButtonBox > QPushButton:hover,
+UIDlgOptionsGeneral > QDialogButtonBox > QPushButton:hover, UIDlgOptionsDrawing > QDialogButtonBox > QPushButton:hover
+{
+	border-style: solid;
+	border-width: 1px;
+	border-radius: 3px;
+	color: #444444;
+	padding: 10px;
+	background-color: #959595;
+}
+
+UIDlgLineType > QPushButton, UIDlgLoadLineType > QPushButton, UIDlgTextStyle > QPushButton, 
+UIDlgDimensionStyleMgr > QPushButton{
+	color: #444444;
+    background-color: #D9D9D9;
+    border-style: outset;
+    border-width: 0px;
+    border-color: #D9D9D9;
+    border-radius: 3px;
+    font: 14px;
+    padding: 10px;
+}
+
+UIDlgLineType > QPushButton:hover, UIDlgLoadLineType > QPushButton:hover, UIDlgTextStyle > QPushButton:hover, UIDlgDimensionStyleMgr > QPushButton:hover{
+	color: #444444;
+    background-color: #959595;
+    border-style: outset;
+    border-width: 0px;
+    border-color: #959595;
+    border-radius: 3px;
+    font: 14px;
+    padding: 10px;
+}
+
+
+
+
+
+
+
+
+
+
+
