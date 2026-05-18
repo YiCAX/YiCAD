@@ -162,12 +162,12 @@ DmLineTypeTable* DmDocument::getLineTypeTable()
 
 void DmDocument::searchEntities(const DmVector& min, const DmVector& max, std::vector<DmEntity*>& ents, bool onlyVisible /*=true*/, bool searchSubEnts/* = true*/)
 {
-    m_entityTable->searchEntities(min, max, ents, onlyVisible, searchSubEnts);
+    getEntityTable()->searchEntities(min, max, ents, onlyVisible, searchSubEnts);
 }
 
 void DmDocument::specifyModifiedEntity(DmEntity* modifiedEnt)
 {
-    m_entityTable->notifyEntityModified(modifiedEnt);
+    getEntityTable()->notifyEntityModified(modifiedEnt);
     if (m_documentView)
     {
         m_documentView->specifyDocumentModified();

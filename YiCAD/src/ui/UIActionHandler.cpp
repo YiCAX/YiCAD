@@ -134,6 +134,7 @@
 #include "MDIWindow.h"
 #include "QMdiArea"
 #include "GuiDocumentView.h"
+#include "GuiEventHandler.h"
 #include "UICurrentActivePen.h"
 #include "ActionModifyCut2P.h"
 #include "ActionModifyExtend.h"
@@ -1560,6 +1561,23 @@ void UIActionHandler::slotCmdStateChanged()
 
 	if (editingBlock && !inBlockEdit)
 	{
+		// Check whether an ActionBlocksEdit is already suspended in the stack.
+		// This happens when a draw/edit command runs on top of block editing
+		// (e.g. ActionDrawLine). Every entity add triggers cmdChanged, so we
+		// must not create a second ActionBlocksEdit that would interrupt it.
+		bool hasSuspendedBlockEdit = false;
+		for (auto* a : m_pView->getEventHandler()->getCurrentActionsRef())
+		{
+			if (!a->isFinished()
+				&& a->getEntityType() == DM::ActionBlocksEdit)
+			{
+				hasSuspendedBlockEdit = true;
+				break;
+			}
+		}
+		if (hasSuspendedBlockEdit)
+			return;
+
 		// undo/redo re-entered block edit mode: find matching block ref,
 		// create a new ActionBlocksEdit
 		// Use getDocumentEntityTable() because getEntityTable() routes to

@@ -97,6 +97,7 @@ void ActionBlocksEdit::reenterEditing(DmBlock* block)
     m_blockName = block->getName();
     setStatus(eEditing);
     showOptions();
+    docView->zoomAuto();
     GUIDIALOGFACTORY->commandMessage(tr("Editing block: %1").arg(m_blockName));
 }
 
@@ -144,6 +145,8 @@ void ActionBlocksEdit::enterEditing(DmBlockReference* blockRef)
     setStatus(eEditing);
     showOptions();
 
+    docView->zoomAuto();
+
     GUIDIALOGFACTORY->commandMessage(tr("Editing block: %1").arg(m_blockName));
 }
 
@@ -172,6 +175,8 @@ void ActionBlocksEdit::completeEditing(bool save)
     m_editingBlock = nullptr;
 
     hideOptions();
+    docView->setMouseCursor(DM::CadCursor);
+    docView->redraw();
     finish();
 }
 
@@ -212,6 +217,8 @@ void ActionBlocksEdit::cancelEditing()
     m_editingBlock = nullptr;
 
     hideOptions();
+    docView->setMouseCursor(DM::CadCursor);
+    docView->redraw();
     finish();
 }
 
