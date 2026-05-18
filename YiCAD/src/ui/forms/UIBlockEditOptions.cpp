@@ -22,6 +22,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QHBoxLayout>
+#include <QMessageBox>
 
 #include "ActionBlocksEdit.h"
 #include "ActionInterface.h"
@@ -64,8 +65,29 @@ void UIBlockEditOptions::setAction(ActionInterface* a)
 
 void UIBlockEditOptions::onCompleteClicked()
 {
-    if (m_action)
+    if (!m_action)
+        return;
+
+    // Show save prompt if there are modifications
+    if (m_action->hasModifications())
     {
-        m_action->completeEditing();
+        int ret = QMessageBox::question(nullptr,
+            QObject::tr("Block Edit"),
+            QObject::tr("Save changes to block?"),
+            QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
+
+        if (ret == QMessageBox::Yes)
+        {
+            m_action->completeEditing(true);
+        }
+        else if (ret == QMessageBox::No)
+        {
+            m_action->completeEditing(false);
+        }
+        // Cancel: continue editing
+    }
+    else
+    {
+        m_action->completeEditing(false);
     }
 }

@@ -1548,6 +1548,46 @@ void UIActionHandler::slotSecectedChanged()
 	setCurrentAction(DM::ActionSelectedChanged);
 }
 
+void UIActionHandler::slotCmdStateChanged()
+{
+	if (!m_pDocument || !m_pView)
+		return;
+
+	DmBlock* editingBlock = m_pDocument->getEditingBlock();
+	ActionInterface* current = m_pView->getCurrentAction();
+	bool inBlockEdit = current
+		&& current->getEntityType() == DM::ActionBlocksEdit;
+
+	if (editingBlock && !inBlockEdit)
+	{
+		// undo/redo re-entered block edit mode: find matching block ref,
+		// create a new ActionBlocksEdit
+		// Use getDocumentEntityTable() because getEntityTable() routes to
+		// the block's table when editingBlock is set
+		DmBlockReference* ref = nullptr;
+		for (auto e : *m_pDocument->getDocumentEntityTable())
+		{
+			if (e && !e->isErased()
+				&& e->getEntityType() == DM::EntityBlockReference)
+			{
+				DmBlockReference* br = static_cast<DmBlockReference*>(e);
+				if (br->getName() == editingBlock->getName())
+				{
+					ref = br;
+					break;
+				}
+			}
+		}
+		auto* action = new ActionBlocksEdit(m_pDocument, m_pView, ref);
+		m_pView->setCurrentAction(action);
+	}
+	else if (!editingBlock && inBlockEdit)
+	{
+		// undo/redo exited block edit mode: end current action
+		current->finish();
+	}
+}
+
 void UIActionHandler::set_view(GuiDocumentView* pDocumentView)
 {
 	m_pView = pDocumentView;
@@ -1555,6 +1595,12 @@ void UIActionHandler::set_view(GuiDocumentView* pDocumentView)
 void UIActionHandler::set_document(DmDocument* doc)
 {
 	m_pDocument = doc;
+	// Connect cmdChanged signal to handle block edit re-entry via undo/redo
+	if (m_pDocument && m_pDocument->getCmdManager())
+	{
+		connect(m_pDocument->getCmdManager(), &CmdManager::cmdChanged,
+				this, &UIActionHandler::slotCmdStateChanged);
+	}
 }
 
 void UIActionHandler::setSnapToolBar(UISnapWidget* toolbar)

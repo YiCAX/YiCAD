@@ -19,7 +19,6 @@
 
 #include "ActionBlocksEdit.h"
 
-#include <cmath>
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QMessageBox>
@@ -33,8 +32,7 @@
 #include "GuiDialogFactory.h"
 #include "GuiDocumentView.h"
 #include "GuiEventHandler.h"
-#include "Math2d.h"
-#include "BlockTableCmd.h"
+#include "BlockEditCmd.h"
 #include "CmdManager.h"
 #include "MacroCmd.h"
 #include "Transaction.h"
@@ -46,11 +44,11 @@
 /// @param docView 文档视图指针
 /// @param selectedRef 选中的块参照，默认为nullptr
 ActionBlocksEdit::ActionBlocksEdit(DmDocument* doc,
-	GuiDocumentView* docView, DmBlockReference* selectedRef)
-	: ActionInterface("Edit Block", doc, docView)
-	, m_blockRefBeingEdited(selectedRef)
+    GuiDocumentView* docView, DmBlockReference* selectedRef)
+    : ActionInterface("Edit Block", doc, docView)
+    , m_blockRefBeingEdited(selectedRef)
 {
-	actionType = DM::ActionBlocksEdit;
+    actionType = DM::ActionBlocksEdit;
 }
 
 /// @brief 析构函数
@@ -60,426 +58,323 @@ ActionBlocksEdit::~ActionBlocksEdit() = default;
 /// @param status 状态参数，默认为0
 void ActionBlocksEdit::init(int status)
 {
-	ActionInterface::init(status);
+    ActionInterface::init(status);
 
-	if (!m_blockRefBeingEdited)
-	{
-		GUIDIALOGFACTORY->commandMessage(
-			tr("No block reference selected. Command cancelled."));
-		finish();
-		return;
-	}
+    // Check for re-entry via undo/redo
+    DmBlock* editingBlock = pDocument->getEditingBlock();
+    if (editingBlock)
+    {
+        // Re-entry via undo: block is already set, just restore UI
+        reenterEditing(editingBlock);
+        return;
+    }
 
-	enterEditing(m_blockRefBeingEdited);
-	setStatus(eEditing);
+    // Normal entry: need a selected block reference
+    if (!m_blockRefBeingEdited)
+    {
+        GUIDIALOGFACTORY->commandMessage(
+            tr("No block reference selected. Command cancelled."));
+        finish();
+        return;
+    }
+
+    enterEditing(m_blockRefBeingEdited);
+    setStatus(eEditing);
 }
 
 /// @brief 触发动作执行
 void ActionBlocksEdit::trigger()
 {
-	if (m_blockRefBeingEdited)
-	{
-		enterEditing(m_blockRefBeingEdited);
-		setStatus(eEditing);
-	}
+    // Not used in the new design; init() handles everything
+}
+
+/// @brief 重新进入编辑模式（通过Undo/Redo）
+/// @param block 块定义指针
+void ActionBlocksEdit::reenterEditing(DmBlock* block)
+{
+    m_isReentry = true;
+    m_editingBlock = block;
+    m_blockName = block->getName();
+    setStatus(eEditing);
+    showOptions();
+    GUIDIALOGFACTORY->commandMessage(tr("Editing block: %1").arg(m_blockName));
+}
+
+/// @brief 正常进入编辑模式
+/// @param blockRef 块参照指针
+void ActionBlocksEdit::enterEditing(DmBlockReference* blockRef)
+{
+    if (!blockRef || !pDocument)
+    {
+        return;
+    }
+
+    m_blockRefBeingEdited = blockRef;
+    m_blockName = blockRef->getName();
+
+    DmBlockTable* blockTable = pDocument->getBlockTable();
+    if (!blockTable)
+    {
+        return;
+    }
+
+    DmBlock* block = blockTable->find(m_blockName);
+    if (!block)
+    {
+        GUIDIALOGFACTORY->commandMessage(
+            tr("Block definition not found: %1").arg(m_blockName));
+        return;
+    }
+
+    m_editingBlock = block;
+
+    // Create a transaction with BlockEditEnterCmd
+    // Use addToCurrentCmd() NOT addAndExecuteCmd() to avoid double execute
+    Transaction t("Block Edit Begin", pDocument);
+    t.start();
+    auto* enterCmd = new BlockEditEnterCmd(pDocument, m_blockName, docView);
+    pDocument->getCmdManager()->addToCurrentCmd(enterCmd);
+    t.commit();
+
+    // Save the macro command for cancel support
+    CmdManager* cmdMgr = pDocument->getCmdManager();
+    m_enterMacroCmd = cmdMgr->getLastUndoCmd();
+    m_undoCountAtEnter = cmdMgr->getUndoCount();
+
+    setStatus(eEditing);
+    showOptions();
+
+    GUIDIALOGFACTORY->commandMessage(tr("Editing block: %1").arg(m_blockName));
+}
+
+/// @brief 完成编辑
+/// @param save 是否保存修改（更新块参照）
+void ActionBlocksEdit::completeEditing(bool save)
+{
+    if (!pDocument)
+    {
+        finish();
+        return;
+    }
+
+    DmBlock* editingBlock = pDocument->getEditingBlock();
+    if (editingBlock)
+    {
+        // Create a transaction with BlockEditExitCmd
+        Transaction t("Block Edit End", pDocument);
+        t.start();
+        auto* exitCmd = new BlockEditExitCmd(pDocument, m_blockName, docView, save);
+        pDocument->getCmdManager()->addToCurrentCmd(exitCmd);
+        t.commit();
+    }
+
+    m_enterMacroCmd = nullptr;
+    m_editingBlock = nullptr;
+
+    hideOptions();
+    finish();
+}
+
+/// @brief 取消编辑，丢弃所有修改
+void ActionBlocksEdit::cancelEditing()
+{
+    if (!pDocument)
+    {
+        finish();
+        return;
+    }
+
+    CmdManager* cmdMgr = pDocument->getCmdManager();
+
+    if (m_enterMacroCmd)
+    {
+        // Find the enter command and roll back everything after it
+        int index = cmdMgr->indexOfCmd(m_enterMacroCmd);
+        if (index != -1)
+        {
+            // This undoes and deletes all commands from the enter to current,
+            // including the enter command itself (which calls setEditBlock(nullptr))
+            cmdMgr->rollbackAndRemoveAfter(index);
+        }
+        m_enterMacroCmd = nullptr;
+    }
+    else
+    {
+        // Re-entry case or no enter command: just exit edit mode
+        DmBlock* editingBlock = pDocument->getEditingBlock();
+        if (editingBlock)
+        {
+            pDocument->setEditBlock(nullptr);
+            pDocument->regenerate();
+        }
+    }
+
+    m_editingBlock = nullptr;
+
+    hideOptions();
+    finish();
+}
+
+/// @brief 检测自进入编辑以来是否有修改
+/// @return true表示有修改
+bool ActionBlocksEdit::hasModifications() const
+{
+    if (!pDocument)
+    {
+        return false;
+    }
+    CmdManager* cmdMgr = pDocument->getCmdManager();
+    return cmdMgr->getUndoCount() > m_undoCountAtEnter;
 }
 
 /// @brief 鼠标移动事件处理
 /// @param e 鼠标事件指针
 void ActionBlocksEdit::mouseMoveEvent(QMouseEvent* e)
 {
-	if (getStatus() == eEditing)
-	{
-		// 编辑模式下转发给默认Action（更新坐标、光标、捕捉）
-		auto* handler = docView->getEventHandler();
-		if (handler && handler->getDefaultAction())
-		{
-			handler->getDefaultAction()->mouseMoveEvent(e);
-		}
-	}
+    if (getStatus() == eEditing)
+    {
+        auto* handler = docView->getEventHandler();
+        if (handler && handler->getDefaultAction())
+        {
+            handler->getDefaultAction()->mouseMoveEvent(e);
+        }
+    }
 }
 
 /// @brief 鼠标按下事件处理
 /// @param e 鼠标事件指针
 void ActionBlocksEdit::mousePressEvent(QMouseEvent* e)
 {
-	if (getStatus() == eEditing)
-	{
-		auto* handler = docView->getEventHandler();
-		if (handler && handler->getDefaultAction())
-		{
-			handler->getDefaultAction()->mousePressEvent(e);
-		}
-	}
+    if (getStatus() == eEditing)
+    {
+        auto* handler = docView->getEventHandler();
+        if (handler && handler->getDefaultAction())
+        {
+            handler->getDefaultAction()->mousePressEvent(e);
+        }
+    }
 }
 
 /// @brief 鼠标释放事件处理
 /// @param e 鼠标事件指针
 void ActionBlocksEdit::mouseReleaseEvent(QMouseEvent* e)
 {
-	if (e->button() == Qt::LeftButton)
-	{
-		if (getStatus() == eEditing)
-		{
-			// 编辑模式下转发给默认Action（选择/框选）
-			auto* handler = docView->getEventHandler();
-			if (handler && handler->getDefaultAction())
-			{
-				handler->getDefaultAction()->mouseReleaseEvent(e);
-			}
-		}
-	}
-	else if (e->button() == Qt::RightButton)
-	{
-		if (getStatus() == eEditing)
-		{
-			int ret = QMessageBox::question(nullptr,
-				tr("Block Edit"),
-				tr("Finish editing and save changes?"),
-				QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
+    if (e->button() == Qt::LeftButton)
+    {
+        if (getStatus() == eEditing)
+        {
+            auto* handler = docView->getEventHandler();
+            if (handler && handler->getDefaultAction())
+            {
+                handler->getDefaultAction()->mouseReleaseEvent(e);
+            }
+        }
+    }
+    else if (e->button() == Qt::RightButton)
+    {
+        if (getStatus() == eEditing)
+        {
+            int ret = QMessageBox::question(nullptr,
+                tr("Block Edit"),
+                tr("Finish editing and save changes?"),
+                QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
 
-			if (ret == QMessageBox::Yes)
-			{
-				completeEditing();
-			}
-			else if (ret == QMessageBox::No)
-			{
-				cancelEditing();
-			}
-			// Cancel: continue editing
-		}
-		else
-		{
-			finish();
-		}
-	}
+            if (ret == QMessageBox::Yes)
+            {
+                completeEditing(true);
+            }
+            else if (ret == QMessageBox::No)
+            {
+                completeEditing(false);
+            }
+            // Cancel: continue editing
+        }
+        else
+        {
+            finish();
+        }
+    }
 }
 
 /// @brief 键盘按下事件处理
 /// @param e 键盘事件指针
 void ActionBlocksEdit::keyPressEvent(QKeyEvent* e)
 {
-	if (getStatus() == eEditing)
-	{
-		auto* handler = docView->getEventHandler();
-		if (handler && handler->getDefaultAction())
-		{
-			handler->getDefaultAction()->keyPressEvent(e);
-		}
-	}
-	else
-	{
-		ActionInterface::keyPressEvent(e);
-	}
+    if (getStatus() == eEditing)
+    {
+        auto* handler = docView->getEventHandler();
+        if (handler && handler->getDefaultAction())
+        {
+            handler->getDefaultAction()->keyPressEvent(e);
+        }
+    }
+    else
+    {
+        ActionInterface::keyPressEvent(e);
+    }
 }
 
 /// @brief 检查是否可以中断
 /// @return true表示可以中断
 bool ActionBlocksEdit::canBeInterrupt()
 {
-	return true;
+    return true;
 }
 
 /// @brief 检查是否为独占动作
 /// @return false表示非独占
 bool ActionBlocksEdit::isExclusive()
 {
-	return false;
+    return false;
 }
 
 /// @brief 检查是否为子动作
 /// @return false表示不是子动作
 bool ActionBlocksEdit::isSubAction()
 {
-	return false;
+    return false;
 }
 
 /// @brief 显示选项栏
 void ActionBlocksEdit::showOptions()
 {
-	ActionInterface::showOptions();
-	GUIDIALOGFACTORY->requestOptions(this, true);
+    ActionInterface::showOptions();
+    GUIDIALOGFACTORY->requestOptions(this, true);
 }
 
 /// @brief 隐藏选项栏
 void ActionBlocksEdit::hideOptions()
 {
-	ActionInterface::hideOptions();
-	GUIDIALOGFACTORY->requestOptions(this, false);
+    ActionInterface::hideOptions();
+    GUIDIALOGFACTORY->requestOptions(this, false);
 }
 
 /// @brief 更新鼠标按钮提示
 void ActionBlocksEdit::updateMouseButtonHints()
 {
-	switch (getStatus())
-	{
-	case eEditing:
-		GUIDIALOGFACTORY->updateMouseWidget(
-			tr("Edit block entities"), tr("Finish / Cancel"));
-		break;
-	default:
-		GUIDIALOGFACTORY->updateMouseWidget();
-		break;
-	}
+    switch (getStatus())
+    {
+    case eEditing:
+        GUIDIALOGFACTORY->updateMouseWidget(
+            tr("Edit block entities"), tr("Finish / Cancel"));
+        break;
+    default:
+        GUIDIALOGFACTORY->updateMouseWidget();
+        break;
+    }
 }
 
 /// @brief 更新鼠标光标
 void ActionBlocksEdit::updateMouseCursor()
 {
-	if (getStatus() == eEditing)
-	{
-		docView->setMouseCursor(DM::ArrowCursor);
-	}
-	else
-	{
-		docView->setMouseCursor(DM::CadCursor);
-	}
-}
-
-/// @brief 进入编辑模式
-/// @param blockRef 块参照指针
-void ActionBlocksEdit::enterEditing(DmBlockReference* blockRef)
-{
-	if (!blockRef || !pDocument)
-	{
-		return;
-	}
-
-	m_blockRefBeingEdited = blockRef;
-	m_blockRefData = blockRef->getData();
-	m_blockName = blockRef->getName();
-
-	DmBlockTable* blockTable = pDocument->getBlockTable();
-	if (!blockTable)
-	{
-		return;
-	}
-
-	DmBlock* block = blockTable->find(m_blockName);
-	if (!block)
-	{
-		GUIDIALOGFACTORY->commandMessage(
-			tr("Block definition not found: %1").arg(m_blockName));
-		return;
-	}
-
-	// 1. 设置编辑块（getEntityTable() 将返回块的实体表）
-	pDocument->setEditBlock(block);
-
-	// 2. 重绑定文档画笔到块的实体容器
-	docView->setDocumentPainterContainer(
-		block->getEntityTable().getEntityContainer());
-
-	// 3. 启动事务，调用 startModify并提交，保存原始块信息
-	Transaction t("Block Edit", pDocument);
-	t.start();
-	blockTable->startModify(block);
-	t.commit();
-
-	// 4. 保存 BlockTableModifyCmd 指针
-	CmdManager* cmdMgr = pDocument->getCmdManager();
-	MacroCmd* groupCmd = cmdMgr->getLastUndoCmd();
-	m_blockTableMacroModifyCmd = dynamic_cast<MacroCmd*>(groupCmd);
-
-	// 5. 记录块中原始实体ID
-	m_basePoint = block->getBasePoint();
-	m_originalEntityIds.clear();
-	for (auto e : block->getEntityTable())
-	{
-		if (e && !e->isErased())
-		{
-			m_originalEntityIds.insert(e->getId());
-		}
-	}
-
-	// 6. 正向变换块实体到世界坐标
-	for (auto e : block->getEntityTable())
-	{
-		if (e && !e->isErased())
-		{
-			applyForwardTransform(e);
-		}
-	}
-
-	// 7. 刷新渲染
-	pDocument->regenerate();
-
-	// 8. 显示选项栏
-	showOptions();
-
-	GUIDIALOGFACTORY->commandMessage(tr("Editing block: %1").arg(m_blockName));
-}
-
-/// @brief 应用正向变换（块坐标 → 世界坐标）
-/// @param entity 实体指针
-void ActionBlocksEdit::applyForwardTransform(DmEntity* entity)
-{
-	// 正向变换（块坐标 → 世界坐标），同 DmBlockReference::update()
-	// 1. move(insertionPoint - basePoint)
-	// 2. scale(insertionPoint, scaleFactor)
-	// 3. rotateAngle(insertionPoint, angle)
-
-	DmVector insertionPoint = m_blockRefData.insertionPoint;
-	DmVector scaleFactor = m_blockRefData.scaleFactor;
-	double angle = m_blockRefData.angle;
-
-	entity->move(insertionPoint + m_basePoint * -1.0);
-	entity->scale(insertionPoint, scaleFactor);
-	entity->rotateAngle(insertionPoint, angle);
-}
-
-/// @brief 应用逆向变换（世界坐标 → 块坐标）
-/// @param entity 实体指针
-void ActionBlocksEdit::applyInverseTransform(DmEntity* entity)
-{
-	// 逆向变换（世界坐标 → 块坐标）
-	// 1. rotateAngle(insertionPoint, -angle)
-	// 2. scale(insertionPoint, 1/scaleFactor)
-	// 3. move(basePoint - insertionPoint)
-
-	DmVector insertionPoint = m_blockRefData.insertionPoint;
-	DmVector scaleFactor = m_blockRefData.scaleFactor;
-	double angle = m_blockRefData.angle;
-
-	// 缩放为零保护
-	const double EPSILON = 1.0e-6;
-	if (std::fabs(scaleFactor.x) < EPSILON || std::fabs(scaleFactor.y) < EPSILON)
-	{
-		return;
-	}
-
-	DmVector invScale(1.0 / scaleFactor.x, 1.0 / scaleFactor.y);
-
-	entity->rotateAngle(insertionPoint, -angle);
-	entity->scale(insertionPoint, invScale);
-	entity->move(m_basePoint + insertionPoint * -1.0);
-}
-
-/// @brief 完成编辑，将修改保存回块定义
-void ActionBlocksEdit::completeEditing()
-{
-	DmBlock* block = pDocument->getEditingBlock();
-	if (!pDocument || !block || !m_blockTableMacroModifyCmd)
-	{
-		cancelEditing();
-		return;
-	}
-
-	// 逆向变换所有实体回块坐标
-	for (auto e : block->getEntityTable())
-	{
-		if (e && !e->isErased())
-		{
-			applyInverseTransform(e);
-		}
-	}
-
-	// 回滚绘图命令，仅保留 BlockTableModifyCmd
-	auto cmdMgr = pDocument->getCmdManager();
-	int index = cmdMgr->indexOfCmd(m_blockTableMacroModifyCmd);
-	if (m_blockTableMacroModifyCmd && index != -1)
-	{
-		// 1. 设置块的新数据
-		std::ostringstream oss;
-		OutputStream str(oss);
-		block->saveStream(str);
-		static_cast<BlockTableModifyCmd*>(*(m_blockTableMacroModifyCmd->begin()))
-			->setNewData(oss.str());
-		static_cast<BlockTableModifyCmd*>(*(m_blockTableMacroModifyCmd->begin()))
-			->setExecuted(false);
-
-		// 2. 回滚并删除之后的所有Cmd（绘图命令）。这会导致创建的实体被删除
-		cmdMgr->rollbackAndRemoveAfter(index + 1);
-	}
-
-	// 通过redo重新创建实体
-	m_blockTableMacroModifyCmd->redo();
-
-	// 退出编辑模式（先退出，使 getEntityTable() 返回文档实体表）
-	pDocument->setEditBlock(nullptr);
-
-	// 重绑定文档画笔到文档实体容器
-	docView->setDocumentPainterContainer(
-		pDocument->getEntityTable()->getEntityContainer());
-
-	// 对文档中所有引用该块的 DmBlockReference 调用 update()
-	std::vector<DmBlockReference*> refs;
-	collectBlockReferences(m_blockName, refs);
-	for (auto ref : refs)
-	{
-		ref->update();
-	}
-
-	m_blockTableMacroModifyCmd = nullptr;
-
-	hideOptions();
-	finish();
-}
-
-/// @brief 取消编辑，丢弃所有修改
-void ActionBlocksEdit::cancelEditing()
-{
-	DmBlock* block = pDocument->getEditingBlock();
-	if (!pDocument || !block)
-	{
-		auto cmdMgr = pDocument->getCmdManager();
-		int index = cmdMgr->indexOfCmd(m_blockTableMacroModifyCmd);
-		if (m_blockTableMacroModifyCmd && index != -1)
-		{
-			// 回滚并删除之后的所有Cmd（绘图命令）。这会导致创建的实体被删除
-			cmdMgr->rollbackAndRemoveAfter(index);
-		}
-		m_blockTableMacroModifyCmd = nullptr;
-		finish();
-		return;
-	}
-
-	// 逆向变换原始实体回块坐标
-	for (auto e : block->getEntityTable())
-	{
-		if (e && !e->isErased())
-		{
-			applyInverseTransform(e);
-		}
-	}
-
-	m_blockTableMacroModifyCmd = nullptr;
-
-	// 退出编辑模式
-	pDocument->setEditBlock(nullptr);
-
-	// 重绑定文档画笔到文档实体容器
-	docView->setDocumentPainterContainer(
-		pDocument->getEntityTable()->getEntityContainer());
-
-	pDocument->regenerate();
-	hideOptions();
-	finish();
-}
-
-/// @brief 收集文档中引用指定块名的所有 DmBlockReference
-/// @param blockName 块名称
-/// @param refs 块参照列表（输出）
-void ActionBlocksEdit::collectBlockReferences(const QString& blockName,
-	std::vector<DmBlockReference*>& refs)
-{
-	if (!pDocument)
-	{
-		return;
-	}
-
-	for (auto e : *pDocument->getEntityTable())
-	{
-		if (e && !e->isErased()
-			&& e->getEntityType() == DM::EntityBlockReference)
-		{
-			DmBlockReference* ref = static_cast<DmBlockReference*>(e);
-			if (ref->getName() == blockName)
-			{
-				refs.push_back(ref);
-			}
-		}
-	}
+    if (getStatus() == eEditing)
+    {
+        docView->setMouseCursor(DM::ArrowCursor);
+    }
+    else
+    {
+        docView->setMouseCursor(DM::CadCursor);
+    }
 }
 
 // EOF

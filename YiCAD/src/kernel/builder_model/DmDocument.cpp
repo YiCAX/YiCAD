@@ -455,7 +455,17 @@ DmObject* DmDocument::findObject(const DmId& id)
 
 void DmDocument::setEditBlock(DmBlock* block)
 {
+    DmBlock* prev = m_editingBlock;
     m_editingBlock = block;
+    if (prev != block && m_documentView)
+    {
+        if (block)
+            m_documentView->setDocumentPainterContainer(
+                block->getEntityTable().getEntityContainer());
+        else
+            m_documentView->setDocumentPainterContainer(
+                m_entityTable->getEntityContainer());
+    }
 }
 
 void DmDocument::clearVariables()

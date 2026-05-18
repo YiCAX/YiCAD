@@ -199,6 +199,10 @@ public slots:
     void slotCopyToLayer();
 
     void slotSecectedChanged();
+
+    /// @brief 响应撤销/重做后的块编辑状态变化
+    void slotCmdStateChanged();
+
 private:
     UISnapWidget*       m_pSnapToolbar = nullptr;
     GuiDocumentView*    m_pView = nullptr;

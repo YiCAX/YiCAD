@@ -70,6 +70,13 @@ public:
     /// @return 撤销栈中的命令数量
     size_t getUndoCount() const { return m_undoCmds.size(); }
 
+    /// @brief 获取撤销栈中指定索引位置的命令
+    /// @param index 索引位置
+    /// @return 命令指针，索引越界返回 nullptr
+    ICmd* getUndoCmdAt(size_t index) const {
+        return (index < m_undoCmds.size()) ? m_undoCmds[index] : nullptr;
+    }
+
     friend class TableBase;
     friend class Transaction;
     friend class TransactionGroup;
