@@ -1555,29 +1555,24 @@ void UIActionHandler::slotCmdStateChanged()
 		return;
 
 	DmBlock* editingBlock = m_pDocument->getEditingBlock();
-	ActionInterface* current = m_pView->getCurrentAction();
-	bool inBlockEdit = current
-		&& current->getEntityType() == DM::ActionBlocksEdit;
+	// Scan the full action stack, not just getCurrentAction().
+	// When a command action (e.g. ActionEditUndo, ActionDrawLine) is
+	// stacked on top of ActionBlocksEdit, getCurrentAction() returns
+	// the top action, hiding the block edit.
+	ActionInterface* blockEditAction = nullptr;
+	for (auto* a : m_pView->getEventHandler()->getCurrentActionsRef())
+	{
+		if (!a->isFinished()
+			&& a->getEntityType() == DM::ActionBlocksEdit)
+		{
+			blockEditAction = a;
+			break;
+		}
+	}
+	bool inBlockEdit = (blockEditAction != nullptr);
 
 	if (editingBlock && !inBlockEdit)
 	{
-		// Check whether an ActionBlocksEdit is already suspended in the stack.
-		// This happens when a draw/edit command runs on top of block editing
-		// (e.g. ActionDrawLine). Every entity add triggers cmdChanged, so we
-		// must not create a second ActionBlocksEdit that would interrupt it.
-		bool hasSuspendedBlockEdit = false;
-		for (auto* a : m_pView->getEventHandler()->getCurrentActionsRef())
-		{
-			if (!a->isFinished()
-				&& a->getEntityType() == DM::ActionBlocksEdit)
-			{
-				hasSuspendedBlockEdit = true;
-				break;
-			}
-		}
-		if (hasSuspendedBlockEdit)
-			return;
-
 		// undo/redo re-entered block edit mode: find matching block ref,
 		// create a new ActionBlocksEdit
 		// Use getDocumentEntityTable() because getEntityTable() routes to
@@ -1601,8 +1596,8 @@ void UIActionHandler::slotCmdStateChanged()
 	}
 	else if (!editingBlock && inBlockEdit)
 	{
-		// undo/redo exited block edit mode: end current action
-		current->finish();
+		// undo/redo exited block edit mode: end the ActionBlocksEdit
+		blockEditAction->finish();
 	}
 }
 

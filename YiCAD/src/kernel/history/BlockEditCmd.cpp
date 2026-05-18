@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (C) 2026 YiCAD Team
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -120,6 +120,7 @@ void BlockEditEnterCmd::updateBlockRefs()
             if (ref->getName() == m_blockName)
             {
                 ref->update();
+                entTable->notifyEntityModified(ref);
             }
         }
     }
@@ -219,6 +220,7 @@ void BlockEditExitCmd::updateBlockRefs()
             if (ref->getName() == m_blockName)
             {
                 ref->update();
+                entTable->notifyEntityModified(ref);
             }
         }
     }
