@@ -267,11 +267,6 @@ DmVector DmDimension::getNearestPointOnEntity(const DmVector& coord, bool onEnti
 	DmVector res(false);
 	for (auto e : *container)
 	{
-		// 标注的文字，忽略
-		if (e->getEntityType() == DM::EntityContainer)
-		{
-			continue;
-		}
 		DmVector temp = e->getNearestPointOnEntity(coord, true, &curDist);
 		if (temp.valid && curDist < minDist)
 		{
