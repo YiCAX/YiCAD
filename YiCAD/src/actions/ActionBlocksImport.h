@@ -22,6 +22,8 @@
 
 #include "ActionInterface.h"
 
+class DmEntity;
+
 /// @brief 从外部文件导入块定义到当前文档
 class ActionBlocksImport : public ActionInterface
 {
@@ -38,6 +40,10 @@ public:
 
 	/// @brief 触发动作执行
 	void trigger() override;
+
+	/// @brief 递归重定向实体的图层、文字样式、标注样式到目标文档
+	/// @param entity 待处理的实体
+	void repointEntityStyles(DmEntity* entity);
 
 	/// @brief 检查是否为独占动作
 	/// @return false表示非独占
