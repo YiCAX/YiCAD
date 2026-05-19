@@ -106,10 +106,10 @@ void ActionBlocksImport::trigger()
 		DmBlock* src = *it;
 		QString name = src->getName();
 
-		// 重名处理：自动改名
+		// 重名处理：不导入
 		if (dstTable->find(name))
 		{
-			name = dstTable->newName(name);
+			continue;
 		}
 
 		// 创建新块定义

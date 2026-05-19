@@ -28,7 +28,7 @@
 /// @brief 标注的一般数据
 struct DmDimensionData
 {
-	DmDimensionData();
+	DmDimensionData() = default;
 
 	/// @param definitionPoint Definition point.
 	/// @param middleOfText Middle point of dimension text.
@@ -43,15 +43,15 @@ struct DmDimensionData
 		double lineSpacingFactor, QString text, double angle, DmDimensionStyle* pStyle);
 
 	/// @brief 定义点。对于对齐标注，为标注界线2起点到标注线的投影
-	DmVector definitionPoint;
-	EMTextVertMode valign;
-	EMTextHorzMode halign;
-	double lineSpacingFactor;
-	QString text;
+	DmVector definitionPoint{false};
+	EMTextVertMode valign = EMTextVertMode::kTextBottom;
+	EMTextHorzMode halign = EMTextHorzMode::kTextLeft;
+	double lineSpacingFactor = 0.0;
+	QString text{""};
 	//角度（弧度）。对于对齐标注，表示旋转角度
-	double angle;
-	DmVector textCenter;
-	DmDimensionStyle* pDimStyle;
+	double angle = 0.0;
+	DmVector textCenter{false};
+	DmDimensionStyle* pDimStyle = nullptr;
 
 	///////以下为替代属性
 public:
@@ -150,7 +150,7 @@ protected:
 
 protected:
 	DmDimensionData data;
-	DmEntityContainer* container;
+	DmEntityContainer* container = nullptr;
 };
 
 #endif
