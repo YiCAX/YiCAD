@@ -80,12 +80,10 @@ void Selection::selectWindow(const DmVector& v1, const DmVector& v2, bool select
 {
 	DmVector min(std::min(v1.x, v2.x), std::min(v1.y, v2.y));
 	DmVector max(std::max(v1.x, v2.x), std::max(v1.y, v2.y));
-	std::vector<DmEntity*> entities;
-	pDocument->searchEntities(min, max, entities, false);
 
 	std::list<DM::EntityType>::size_type typeSize = entityTypeList.size();
 	bool included = false;
-	for (auto e : entities)
+	for (auto e : *pDocument->getEntityTable())
 	{
 		included = false;
 		if (typeSize != 0)
@@ -97,6 +95,13 @@ void Selection::selectWindow(const DmVector& v1, const DmVector& v2, bool select
 		}
 
 		if (!e->isVisible())
+		{
+			continue;
+		}
+
+		// 先用顶层实体包围盒做一次粗过滤，避免全量跑几何相交判断。
+		if (e->getMax().x < min.x || e->getMin().x > max.x
+			|| e->getMax().y < min.y || e->getMin().y > max.y)
 		{
 			continue;
 		}
