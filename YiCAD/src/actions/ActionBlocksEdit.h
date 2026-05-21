@@ -106,6 +106,12 @@ public:
     /// @return 块名称
     QString getBlockName() const { return m_blockName; }
 
+    /// @brief 是否为嵌套块编辑
+    bool isNestedEdit() const { return m_isNestedEdit; }
+
+    /// @brief 获取顶层块名称（嵌套编辑时为用户选中的块参照对应的块名）
+    QString getTopLevelBlockName() const { return m_topLevelBlockName; }
+
     /// @brief 检测自进入编辑以来是否有修改
     /// @return true表示有修改
     bool hasModifications() const;
@@ -127,6 +133,8 @@ private:
     size_t m_undoCountAtEnter = 0;           ///< 进入编辑时的 undo 栈深度（用于检测修改）
     DmBlock* m_editingBlock = nullptr;       ///< 缓存的块定义指针
     bool m_isReentry = false;               ///< 是否通过 undo/redo 重新进入
+    bool m_isNestedEdit = false;            ///< 是否为嵌套块编辑
+    QString m_topLevelBlockName;            ///< 顶层块名称（嵌套编辑时有效）
 };
 
 #endif

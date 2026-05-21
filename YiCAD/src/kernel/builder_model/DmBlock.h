@@ -20,6 +20,8 @@
 #ifndef DMBLOCK_H
 #define DMBLOCK_H
 
+#include <QSet>
+
 #include "DmObject.h"
 #include "EntityTable.h"
 
@@ -119,6 +121,11 @@ public:
     bool isSelectedInBlockList() const;
 
     QStringList findNestedInsert(const QString& bName);
+
+    /// @brief 递归收集当前块及其所有嵌套块的名称（包括自身）
+    /// @param[out] names 输出的块名称列表
+    /// @param[in,out] visited 已访问的块名称集合，用于防止循环嵌套
+    void collectNestedBlockNames(QStringList& names, QSet<QString>& visited);
 
     /// @brief 是否包含属性定义
     bool hasAttributeDefinitions() const;

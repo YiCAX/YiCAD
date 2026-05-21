@@ -19,12 +19,53 @@
 
 #include "BlockEditCmd.h"
 
+#include <QSet>
+
 #include "DmDocument.h"
 #include "DmBlock.h"
 #include "DmBlockTable.h"
 #include "DmBlockReference.h"
 #include "EntityTable.h"
 #include "GuiDocumentView.h"
+
+// ============================================================================
+// Helper: find all block names affected by editing a given block
+// ============================================================================
+
+static QSet<QString> getAllAffectedBlockNames(DmDocument* doc, const QString& editedBlockName)
+{
+    QSet<QString> affected;
+    affected.insert(editedBlockName);
+
+    DmBlockTable* blockTable = doc->getBlockTable();
+    if (!blockTable)
+        return affected;
+
+    bool changed = true;
+    while (changed)
+    {
+        changed = false;
+        QSet<QString> snapshot = affected;
+        for (auto blk : *blockTable)
+        {
+            if (!blk || blk->isErased())
+                continue;
+            if (affected.contains(blk->getName()))
+                continue;
+            for (const QString& name : snapshot)
+            {
+                QStringList chain = blk->findNestedInsert(name);
+                if (!chain.empty())
+                {
+                    affected.insert(blk->getName());
+                    changed = true;
+                    break;
+                }
+            }
+        }
+    }
+    return affected;
+}
 
 // ============================================================================
 // BlockEditEnterCmd
@@ -108,16 +149,15 @@ void BlockEditEnterCmd::clear()
 
 void BlockEditEnterCmd::updateBlockRefs()
 {
-    // This is called after setEditBlock(nullptr) in undo(),
-    // so getEntityTable() returns the document's entity table
-    auto entTable = m_pDocument->getEntityTable();
+    QSet<QString> affected = getAllAffectedBlockNames(m_pDocument, m_blockName);
+    auto entTable = m_pDocument->getDocumentEntityTable();
     for (auto e : *entTable)
     {
         if (e && !e->isErased()
             && e->getEntityType() == DM::EntityBlockReference)
         {
             DmBlockReference* ref = static_cast<DmBlockReference*>(e);
-            if (ref->getName() == m_blockName)
+            if (affected.contains(ref->getName()))
             {
                 ref->update();
                 entTable->notifyEntityModified(ref);
@@ -210,14 +250,15 @@ void BlockEditExitCmd::clear()
 
 void BlockEditExitCmd::updateBlockRefs()
 {
-    auto entTable = m_pDocument->getEntityTable();
+    QSet<QString> affected = getAllAffectedBlockNames(m_pDocument, m_blockName);
+    auto entTable = m_pDocument->getDocumentEntityTable();
     for (auto e : *entTable)
     {
         if (e && !e->isErased()
             && e->getEntityType() == DM::EntityBlockReference)
         {
             DmBlockReference* ref = static_cast<DmBlockReference*>(e);
-            if (ref->getName() == m_blockName)
+            if (affected.contains(ref->getName()))
             {
                 ref->update();
                 entTable->notifyEntityModified(ref);

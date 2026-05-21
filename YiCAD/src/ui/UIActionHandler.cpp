@@ -18,6 +18,7 @@
 /// @brief 核心动作分发器，负责根据命令类型创建和管理所有CAD操作动作（绘图、修改、标注、捕捉等）
 
 #include <cmath>
+#include <QMessageBox>
 #include "UIActionHandler.h"
 #include "UISnapWidget.h"
 #include "GuiDialogFactory.h"
@@ -624,6 +625,13 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 		a = new ActionBlocksDelete(m_pDocument, m_pView);
 		break;
 	case DM::ActionBlocksEdit:
+		if (m_pDocument->getEditingBlock() != nullptr)
+		{
+			QMessageBox::warning(nullptr,
+				QObject::tr("Block Edit"),
+				QObject::tr("Cannot edit block references while already editing a block."));
+			break;
+		}
 		if (!m_pDocument->getEntityTable()->hasSelect())
 		{
 			a = new ActionSelect(this, m_pDocument, m_pView, DM::ActionBlocksEditNoSelect);
@@ -632,6 +640,13 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 		// fall-through
 	case DM::ActionBlocksEditNoSelect:
 		{
+			if (m_pDocument->getEditingBlock() != nullptr)
+			{
+				QMessageBox::warning(nullptr,
+					QObject::tr("Block Edit"),
+					QObject::tr("Cannot edit block references while already editing a block."));
+				break;
+			}
 			DmBlockReference* selectedRef = nullptr;
 			for (auto e : *m_pDocument->getEntityTable())
 			{

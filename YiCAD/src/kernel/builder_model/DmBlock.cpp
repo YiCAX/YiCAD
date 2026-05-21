@@ -21,6 +21,7 @@
 #include "DmBlock.h"
 
 #include "DmDocument.h"
+#include "DmBlockTable.h"
 #include "DmBlockReference.h"
 #include "DmLine.h"
 #include "DmCircle.h"
@@ -241,6 +242,36 @@ QStringList DmBlock::findNestedInsert(const QString& bName)
     }
 
     return bnChain;
+}
+
+void DmBlock::collectNestedBlockNames(QStringList& names, QSet<QString>& visited)
+{
+    if (visited.contains(data.name))
+        return;
+
+    visited.insert(data.name);
+    names.append(data.name);
+
+    DmBlockTable* blockTable = getDocument()->getBlockTable();
+    if (!blockTable)
+        return;
+
+    for (auto e : m_entityTable)
+    {
+        if (e->getEntityType() == DM::EntityBlockReference)
+        {
+            DmBlockReference* ref = static_cast<DmBlockReference*>(e);
+            QString refName = ref->getName();
+            if (!visited.contains(refName))
+            {
+                DmBlock* nestedBlock = blockTable->find(refName);
+                if (nestedBlock)
+                {
+                    nestedBlock->collectNestedBlockNames(names, visited);
+                }
+            }
+        }
+    }
 }
 
 bool DmBlock::hasAttributeDefinitions() const

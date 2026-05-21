@@ -22,6 +22,7 @@
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QMessageBox>
+#include <QSet>
 
 #include "DmBlock.h"
 #include "DmDocument.h"
@@ -37,6 +38,7 @@
 #include "MacroCmd.h"
 #include "Transaction.h"
 #include "UIDialogFactory.h"
+#include "UINestedBlockSelectDialog.h"
 
 
 /// @brief 构造函数
@@ -125,6 +127,45 @@ void ActionBlocksEdit::enterEditing(DmBlockReference* blockRef)
         GUIDIALOGFACTORY->commandMessage(
             tr("Block definition not found: %1").arg(m_blockName));
         return;
+    }
+
+    // Check for nested blocks
+    QStringList nestedNames;
+    QSet<QString> visited;
+    block->collectNestedBlockNames(nestedNames, visited);
+
+    if (nestedNames.size() > 1)
+    {
+        // Show nested block selection dialog
+        UINestedBlockSelectDialog dlg(pDocument, nestedNames, nullptr);
+        if (dlg.exec() != QDialog::Accepted)
+        {
+            finish();
+            return;
+        }
+
+        QString selectedName = dlg.selectedBlockName();
+        if (selectedName.isEmpty())
+        {
+            finish();
+            return;
+        }
+
+        if (selectedName != m_blockName)
+        {
+            m_isNestedEdit = true;
+            m_topLevelBlockName = m_blockName;
+            m_blockName = selectedName;
+
+            block = blockTable->find(m_blockName);
+            if (!block)
+            {
+                GUIDIALOGFACTORY->commandMessage(
+                    tr("Block definition not found: %1").arg(m_blockName));
+                finish();
+                return;
+            }
+        }
     }
 
     m_editingBlock = block;
