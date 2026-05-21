@@ -3487,6 +3487,11 @@ This block cannot be inserted.</source>
         <source>Define attributes</source>
         <translation>定义属性</translation>
     </message>
+	<message>
+        <location filename="../src/main/ApplicationWindow.cpp" line="1626"/>
+        <source>Edit Block</source>
+        <translation>编辑块</translation>
+    </message>
     <message>
         <location filename="../src/main/ApplicationWindow.cpp" line="1794"/>
         <source>copy to layer</source>
