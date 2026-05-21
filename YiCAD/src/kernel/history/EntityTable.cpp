@@ -22,6 +22,33 @@
 #include "DmIdManager.h"
 #include "EntityTableCmd.h"
 #include "Cmd.h"
+#include <unordered_set>
+
+namespace
+{
+void collectSearchEntitiesRecursive(DmEntity* entity, std::vector<DmEntity*>& ents,
+    std::unordered_set<DmEntity*>& visited)
+{
+    if (!entity || visited.find(entity) != visited.end())
+    {
+        return;
+    }
+
+    visited.insert(entity);
+
+    std::list<DmEntity*> subEntities = entity->getSubEntities();
+    if (!subEntities.empty())
+    {
+        for (auto sub : subEntities)
+        {
+            collectSearchEntitiesRecursive(sub, ents, visited);
+        }
+        return;
+    }
+
+    ents.emplace_back(entity);
+}
+}
 
 EntityTable::EntityTable()
 {
@@ -62,7 +89,17 @@ void EntityTable::searchEntities(const DmVector &min, const DmVector &max, std::
 {
     if (searchSubEnts)
     {
-        m_searchTree.search(min, max, ents);
+        std::vector<DmEntity*> found;
+        m_searchTree.search(min, max, found);
+
+        std::unordered_set<DmEntity*> visited;
+        std::vector<DmEntity*> expanded;
+        expanded.reserve(found.size());
+        for (auto e : found)
+        {
+            collectSearchEntitiesRecursive(e, expanded, visited);
+        }
+        ents = std::move(expanded);
     }
     else
     {

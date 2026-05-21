@@ -26,11 +26,29 @@
 #include <QLabel>
 
 #include "DmBlock.h"
+#include "DmBlockReference.h"
 #include "DmBlockTable.h"
 #include "DmDocument.h"
 #include "DmEntity.h"
 #include "DmEntityContainer.h"
 #include "GuiPreviewWidget.h"
+
+namespace
+{
+void appendPreviewEntities(DmEntityContainer* previewContainer, DmEntity* entity)
+{
+    if (!previewContainer || !entity || entity->isErased())
+    {
+        return;
+    }
+
+    DmEntity* clone = entity->clone();
+    clone->setParent(previewContainer);
+    clone->setSelected(false);
+    clone->setHighlighted(false);
+    previewContainer->addEntity(clone);
+}
+}
 
 UINestedBlockSelectDialog::UINestedBlockSelectDialog(
     DmDocument* doc, const QStringList& blockNames, QWidget* parent)
@@ -121,11 +139,13 @@ void UINestedBlockSelectDialog::onSelectionChanged(int row)
     {
         if (e && !e->isErased())
         {
-            m_previewContainer->addEntity(e->clone());
+            appendPreviewEntities(m_previewContainer, e);
         }
     }
+    m_previewContainer->forcedCalculateBorders();
 
     m_previewWidget->setContainer(m_previewContainer);
+    m_previewWidget->specifyModified();
     m_previewWidget->zoomAuto();
-    m_previewWidget->show();
+    m_previewWidget->redraw();
 }

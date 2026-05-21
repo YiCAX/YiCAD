@@ -72,6 +72,7 @@ DmBlockReference::~DmBlockReference()
 DmEntity* DmBlockReference::clone() const
 {
     DmBlockReference* i = new DmBlockReference(*this);
+    i->block = nullptr;
     // 深拷贝子实体
     i->m_subEntities.clear();
     for (auto e : m_subEntities)
