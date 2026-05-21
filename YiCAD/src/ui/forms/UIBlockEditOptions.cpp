@@ -22,6 +22,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QHBoxLayout>
+#include <QMessageBox>
 
 #include "ActionBlocksEdit.h"
 #include "ActionInterface.h"
@@ -38,6 +39,7 @@ UIBlockEditOptions::UIBlockEditOptions(QWidget* parent, Qt::WindowFlags fl)
     m_label->setText(tr("Editing Block:"));
 
     m_completeButton = new QPushButton(tr("Complete"), this);
+    m_completeButton->setToolTip(tr("Complete block editing"));
     connect(m_completeButton, &QPushButton::clicked, this, &UIBlockEditOptions::onCompleteClicked);
 
     layout->addWidget(m_label);
@@ -64,8 +66,29 @@ void UIBlockEditOptions::setAction(ActionInterface* a)
 
 void UIBlockEditOptions::onCompleteClicked()
 {
-    if (m_action)
+    if (!m_action)
+        return;
+
+    // 如果存在修改，则弹出保存确认提示
+    if (m_action->hasModifications())
     {
-        m_action->completeEditing();
+        int ret = QMessageBox::question(nullptr,
+            tr("Block Edit"),
+            tr("Save changes to block?"),
+            QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
+
+        if (ret == QMessageBox::Yes)
+        {
+            m_action->completeEditing(true);
+        }
+        else if (ret == QMessageBox::No)
+        {
+            m_action->completeEditing(false);
+        }
+        // 取消：继续编辑
+    }
+    else
+    {
+        m_action->completeEditing(false);
     }
 }

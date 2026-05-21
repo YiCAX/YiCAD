@@ -18,6 +18,7 @@
 /// @brief 核心动作分发器，负责根据命令类型创建和管理所有CAD操作动作（绘图、修改、标注、捕捉等）
 
 #include <cmath>
+#include <QMessageBox>
 #include "UIActionHandler.h"
 #include "UISnapWidget.h"
 #include "GuiDialogFactory.h"
@@ -134,6 +135,7 @@
 #include "MDIWindow.h"
 #include "QMdiArea"
 #include "GuiDocumentView.h"
+#include "GuiEventHandler.h"
 #include "UICurrentActivePen.h"
 #include "ActionModifyCut2P.h"
 #include "ActionModifyExtend.h"
@@ -623,6 +625,13 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 		a = new ActionBlocksDelete(m_pDocument, m_pView);
 		break;
 	case DM::ActionBlocksEdit:
+		if (m_pDocument->getEditingBlock() != nullptr)
+		{
+			QMessageBox::warning(nullptr,
+				tr("Block Edit"),
+				tr("Cannot edit block references while already editing a block."));
+			break;
+		}
 		if (!m_pDocument->getEntityTable()->hasSelect())
 		{
 			a = new ActionSelect(this, m_pDocument, m_pView, DM::ActionBlocksEditNoSelect);
@@ -631,6 +640,13 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 		// fall-through
 	case DM::ActionBlocksEditNoSelect:
 		{
+			if (m_pDocument->getEditingBlock() != nullptr)
+			{
+				QMessageBox::warning(nullptr,
+					tr("Block Edit"),
+					tr("Cannot edit block references while already editing a block."));
+				break;
+			}
 			DmBlockReference* selectedRef = nullptr;
 			for (auto e : *m_pDocument->getEntityTable())
 			{
@@ -1548,6 +1564,58 @@ void UIActionHandler::slotSecectedChanged()
 	setCurrentAction(DM::ActionSelectedChanged);
 }
 
+void UIActionHandler::slotCmdStateChanged()
+{
+	if (!m_pDocument || !m_pView)
+		return;
+
+	DmBlock* editingBlock = m_pDocument->getEditingBlock();
+	// 扫描完整动作栈，而不是只看 getCurrentAction()。
+	// 当命令动作（如 ActionEditUndo、ActionDrawLine）压在
+	// ActionBlocksEdit 之上时，getCurrentAction() 返回的是栈顶动作，
+	// 会把块编辑动作隐藏掉。
+	ActionInterface* blockEditAction = nullptr;
+	for (auto* a : m_pView->getEventHandler()->getCurrentActionsRef())
+	{
+		if (!a->isFinished()
+			&& a->getEntityType() == DM::ActionBlocksEdit)
+		{
+			blockEditAction = a;
+			break;
+		}
+	}
+	bool inBlockEdit = (blockEditAction != nullptr);
+
+	if (editingBlock && !inBlockEdit)
+	{
+		// 撤销/重做后重新进入块编辑：找到匹配的块参照，
+		// 重新创建一个 ActionBlocksEdit
+		// 这里使用 getDocumentEntityTable()，因为 editingBlock 已设置时，
+		// getEntityTable() 会路由到块自己的实体表
+		DmBlockReference* ref = nullptr;
+		for (auto e : *m_pDocument->getDocumentEntityTable())
+		{
+			if (e && !e->isErased()
+				&& e->getEntityType() == DM::EntityBlockReference)
+			{
+				DmBlockReference* br = static_cast<DmBlockReference*>(e);
+				if (br->getName() == editingBlock->getName())
+				{
+					ref = br;
+					break;
+				}
+			}
+		}
+		auto* action = new ActionBlocksEdit(m_pDocument, m_pView, ref);
+		m_pView->setCurrentAction(action);
+	}
+	else if (!editingBlock && inBlockEdit)
+	{
+		// 撤销/重做后退出了块编辑：结束 ActionBlocksEdit
+		blockEditAction->finish();
+	}
+}
+
 void UIActionHandler::set_view(GuiDocumentView* pDocumentView)
 {
 	m_pView = pDocumentView;
@@ -1555,6 +1623,12 @@ void UIActionHandler::set_view(GuiDocumentView* pDocumentView)
 void UIActionHandler::set_document(DmDocument* doc)
 {
 	m_pDocument = doc;
+	// 连接 cmdChanged 信号，用于处理撤销/重做导致的块编辑重新进入
+	if (m_pDocument && m_pDocument->getCmdManager())
+	{
+		connect(m_pDocument->getCmdManager(), &CmdManager::cmdChanged,
+				this, &UIActionHandler::slotCmdStateChanged);
+	}
 }
 
 void UIActionHandler::setSnapToolBar(UISnapWidget* toolbar)

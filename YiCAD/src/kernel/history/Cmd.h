@@ -53,6 +53,9 @@ enum class CmdType
     BlockTableRemoveCmd,
     BlockTableModifyCmd,
 
+    BlockEditEnterCmd,
+    BlockEditExitCmd,
+
 };
 
 class DmObject;

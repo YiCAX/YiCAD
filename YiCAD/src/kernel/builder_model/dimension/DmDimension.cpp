@@ -39,18 +39,6 @@
 TYPESYSTEM_SOURCE(DmDimension, DmEntity, 0);
 DIM_FUNCS_IMPLEMENT(DmDimensionData)
 
-DmDimensionData::DmDimensionData()
-	: definitionPoint(false)
-	, textCenter(false)
-	, valign(EMTextVertMode::kTextBottom)
-	, halign(EMTextHorzMode::kTextLeft)
-	, lineSpacingFactor(0.0)
-	, text("")
-	, angle(0.0)
-	, pDimStyle(nullptr)
-{
-}
-
 /// @param definitionPoint Definition point.
 /// @param middleOfText Middle point of dimension text.
 /// @param valign Vertical alignment.
@@ -279,11 +267,6 @@ DmVector DmDimension::getNearestPointOnEntity(const DmVector& coord, bool onEnti
 	DmVector res(false);
 	for (auto e : *container)
 	{
-		// 标注的文字，忽略
-		if (e->getEntityType() == DM::EntityContainer)
-		{
-			continue;
-		}
 		DmVector temp = e->getNearestPointOnEntity(coord, true, &curDist);
 		if (temp.valid && curDist < minDist)
 		{

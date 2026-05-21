@@ -46,7 +46,7 @@ void DmBlockTable::startModify(DmObject* e)
     m_pDoc->getCmdManager()->addToCurrentCmd(cmd);
 }
 
-// Removes all blocks in the blocktable.
+// 清空块表中的所有块。
 void DmBlockTable::clear()
 {
     m_blocks.clear();
@@ -54,13 +54,13 @@ void DmBlockTable::clear()
     m_pActiveBlock = nullptr;
 }
 
-// Activates the given block. Listeners are notified.
+// 激活指定块。
 void DmBlockTable::activate(const QString& name)
 {
     activate(find(name));
 }
 
-// Activates the given block. Listeners are notified.
+// 激活指定块。
 void DmBlockTable::activate(DmBlock* block)
 {
     m_pActiveBlock = block;
@@ -76,10 +76,10 @@ void DmBlockTable::activate_direct(DmBlock* block)
     m_pActiveBlock = block;
 }
 
-/// @brief Adds a block to the block list. If a block with the same name  exists already, the given block will be deleted if the blockTable owns the blocks.
+/// @brief 向块列表添加块。如果已存在同名块，则添加失败。
 /// @param block 要添加的块
-/// @param notify true if you want listeners to be notified.
-/// @return false: block already existed and was deleted.
+/// @param notify true 表示需要通知监听者
+/// @return false 表示已存在同名块，添加失败
 bool DmBlockTable::add(DmBlock* block, bool notify)
 {
     if (!block)
@@ -92,7 +92,7 @@ bool DmBlockTable::add(DmBlock* block, bool notify)
         return false;
     }
 
-    // check if block already exists:
+    // 检查块是否已存在
     DmBlock* b = find(block->getName());
     if (b)
     {
@@ -111,8 +111,8 @@ bool DmBlockTable::add(DmBlock* block, bool notify)
     return true;
 }
 
-// Removes a block from the list.
-// Listeners are notified after the block was removed from the list but before it gets deleted.
+// 从列表中移除块。
+// 块从列表移除后、对象真正删除前会通知监听者。
 void DmBlockTable::remove(DmBlock* block)
 {
     if (!block)
@@ -129,7 +129,7 @@ void DmBlockTable::remove(DmBlock* block)
     BlockTableRemoveCmd* cmd = new BlockTableRemoveCmd(this, block);
     m_pDoc->getCmdManager()->addAndExecuteCmd(cmd);
 
-    // activate an other block if necessary:
+    // 必要时取消当前激活块
     if (m_pActiveBlock == block)
     {
         m_pActiveBlock = nullptr;
@@ -152,11 +152,11 @@ void DmBlockTable::remove_direct(DmBlock* block)
     m_blockMap.erase(block->getId());
 }
 
-/// @brief Tries to rename the given block to 'name'. Block names are unique in the block list.
+/// @brief 尝试将指定块重命名为 name，块表中的块名必须唯一。
 /// @param block 要重命名的块
 /// @param name 新名称
-/// @retval true block was successfully renamed.
-/// @retval false block couldn't be renamed.
+/// @retval true 重命名成功
+/// @retval false 重命名失败
 bool DmBlockTable::rename(DmBlock* block, const QString& name)
 {
     if (block)
@@ -171,7 +171,7 @@ bool DmBlockTable::rename(DmBlock* block, const QString& name)
     return false;
 }
 
-/// @return Pointer to the block with the given name or nullptr if no such block was found.
+/// @return 返回指定名称的块指针；如果未找到则返回 nullptr
 DmBlock* DmBlockTable::find(const QString& name)
 {
     for (DmBlock* b : m_blocks)
@@ -198,8 +198,8 @@ DmBlock* DmBlockTable::find(const DmId& id)
     return it->second;
 }
 
-/// @brief Finds a new unique block name.
-/// @param suggestion Suggested name the new name will be based on.
+/// @brief 生成一个新的唯一块名。
+/// @param suggestion 新块名的建议前缀
 QString DmBlockTable::newName(const QString& suggestion)
 {
     if (!find(suggestion))
@@ -237,15 +237,13 @@ QString DmBlockTable::newName(const QString& suggestion)
     return QString("%1-%2").arg(name).arg(i + 1);
 }
 
-// Switches on / off the given block.
-// Listeners are notified.
+// 切换指定块的开关状态。
 void DmBlockTable::toggle(const QString& name)
 {
     toggle(find(name));
 }
 
-// Switches on / off the given block.
-// Listeners are notified.
+// 切换指定块的开关状态。
 void DmBlockTable::toggle(DmBlock* block)
 {
     if (!block)
@@ -279,7 +277,7 @@ DmBlockTable::iterator DmBlockTable::end()
     return DmBlockTable::iterator(m_blocks.end());
 }
 
-/// @return The active block of nullptr if no block is activated.
+/// @return 当前激活的块；如果没有激活块则返回 nullptr
 DmBlock* DmBlockTable::getActive()
 {
     return m_pActiveBlock;

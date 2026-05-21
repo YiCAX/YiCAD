@@ -61,10 +61,10 @@ public:
     /// @return DM::EntityBlockReference
     virtual DM::EntityType getEntityType() const;
 
-    /// @return Copy of data that defines the insert.
+    /// @return 返回定义该块参照的数据副本
     DmBlockReferenceData getData() const;
 
-    // Reimplementation of setParent. Invalidates block cache pointer.
+    // 重写 setParent，并使块缓存指针失效。
     virtual void setParent(DmEntityContainer* parent);
 
     DmBlock* getBlockForInsert() const;
@@ -121,6 +121,7 @@ public:
     virtual DmVector getNearestRef(const DmVector& coord, double* dist = nullptr) const;
     virtual double getDistanceToPoint(const DmVector& coord, DmEntity** entity = nullptr, DM::ResolveLevel level = DM::ResolveNone) const override;
     virtual DmVector getNearestPointOnEntity(const DmVector& coord, bool onEntity = true, double* dist = nullptr, DmEntity** entity = nullptr) const override;
+    virtual DmVector getNearestEndpoint(const DmVector& coord, double* dist = nullptr) const override;
     virtual DmVector getNearestCenter(const DmVector& coord, double* dist = nullptr) const override;
     virtual DmVector getNearestMiddle(const DmVector& coord, double* dist = nullptr, int middlePoints = 1) const override;
 
@@ -130,14 +131,14 @@ public:
     virtual void scale(const DmVector& center, const DmVector& factor);
     virtual void mirror(const DmVector& axisPoint1, const DmVector& axisPoint2);
 
-    // persistent helper
+    // 持久化辅助接口
     virtual void saveStream(OutputStream& wrt) const override;
     virtual void restoreStream(InputStream& reader, const std::vector<PAIR>& revs) override;
     virtual void restoreStreamWithRev(InputStream& rdr, int rev) override;
 
 protected:
     DmBlockReferenceData        data;
-    mutable DmBlock*    block = nullptr; ///< 缓存块指针，: 干啥用的？
+    mutable DmBlock*    block = nullptr; ///< 缓存关联的块定义指针
 
 private:
     QList<DmEntity*> m_subEntities;  ///< 展开的子实体，始终拥有所有权

@@ -79,7 +79,7 @@ void ActionBlocksCreate::trigger()
 	if (blockData.name.isEmpty())
 	{
 		docView->redraw();
-		setStatus(getStatus() + 1);  // clear mouse button hints
+		setStatus(getStatus() + 1);  // 清除鼠标按钮提示
 		updateMouseButtonHints();
 		docView->killSelectActions();
 		finish(false);
@@ -142,7 +142,7 @@ void ActionBlocksCreate::trigger()
 
 	docView->redraw();
 
-	setStatus(getStatus() + 1);  // clear mouse button hints
+	setStatus(getStatus() + 1);  // 清除鼠标按钮提示
 	updateMouseButtonHints();
 	docView->killSelectActions();
 	finish(false);
@@ -220,4 +220,4 @@ void ActionBlocksCreate::updateMouseCursor()
 	docView->setMouseCursor(DM::CadCursor);
 }
 
-// EOF
+// 文件结束

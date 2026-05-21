@@ -70,4 +70,4 @@ void ActionBlocksSaveAs::init(int status)
     trigger();
 }
 
-// EOF
+// 文件结束

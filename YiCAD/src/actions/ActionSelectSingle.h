@@ -41,6 +41,9 @@ public:
     /// @brief 执行选择操作
     void trigger() override;
 
+    /// @brief 初始化选择操作
+    void init(int status = 0) override;
+
     /// @brief 处理键盘按键事件
     /// @param [in] e 键盘事件指针
     void keyPressEvent(QKeyEvent* e) override;

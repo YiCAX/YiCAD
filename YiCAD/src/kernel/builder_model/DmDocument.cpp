@@ -162,12 +162,12 @@ DmLineTypeTable* DmDocument::getLineTypeTable()
 
 void DmDocument::searchEntities(const DmVector& min, const DmVector& max, std::vector<DmEntity*>& ents, bool onlyVisible /*=true*/, bool searchSubEnts/* = true*/)
 {
-    m_entityTable->searchEntities(min, max, ents, onlyVisible, searchSubEnts);
+    getEntityTable()->searchEntities(min, max, ents, onlyVisible, searchSubEnts);
 }
 
 void DmDocument::specifyModifiedEntity(DmEntity* modifiedEnt)
 {
-    m_entityTable->notifyEntityModified(modifiedEnt);
+    getEntityTable()->notifyEntityModified(modifiedEnt);
     if (m_documentView)
     {
         m_documentView->specifyDocumentModified();
@@ -455,7 +455,17 @@ DmObject* DmDocument::findObject(const DmId& id)
 
 void DmDocument::setEditBlock(DmBlock* block)
 {
+    DmBlock* prev = m_editingBlock;
     m_editingBlock = block;
+    if (prev != block && m_documentView)
+    {
+        if (block)
+            m_documentView->setDocumentPainterContainer(
+                block->getEntityTable().getEntityContainer());
+        else
+            m_documentView->setDocumentPainterContainer(
+                m_entityTable->getEntityContainer());
+    }
 }
 
 void DmDocument::clearVariables()

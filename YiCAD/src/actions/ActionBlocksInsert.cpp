@@ -46,7 +46,7 @@ ActionBlocksInsert::ActionBlocksInsert(
     , lastStatus(eSetUndefined)
 {
     actionType = DM::ActionBlocksInsert;
-    reset();  // init data Member
+    reset();  // 初始化数据成员
 }
 
 /// @brief 析构函数
@@ -544,4 +544,4 @@ void ActionBlocksInsert::updateMouseCursor()
     docView->setMouseCursor(DM::CadCursor);
 }
 
-// EOF
+// 文件结束

@@ -51,10 +51,10 @@ public:
     void startModify(DmObject* e) override;
 
     void clear();
-    /// @return Number of non-erased blocks available.
+    /// @return 当前未删除的块数量
     unsigned int count() const;
 
-    /// @brief range based loop
+    /// @brief 用于 range-based for 遍历
     iterator begin();
     iterator end();
 
@@ -62,7 +62,7 @@ public:
     void activate(DmBlock* block);
     void activate_direct(const QString& name);
     void activate_direct(DmBlock* block);
-    /// @return The active block of NULL if no block is activated.
+    /// @return 当前激活的块；若没有激活块则返回 nullptr
     DmBlock* getActive();
 
     virtual bool add(DmBlock* block, bool notify = true);
@@ -80,9 +80,9 @@ public:
     void toggle(DmBlock* block);
 
 private:
-    std::vector<DmBlock*>           m_blocks;           ///< Blocks in the document
-    std::unordered_map<DmId, DmBlock*> m_blockMap;      ///< Block lookup by ID
-    DmBlock*                        m_pActiveBlock = nullptr;  ///< Currently active block
+    std::vector<DmBlock*>           m_blocks;           ///< 文档中的块列表
+    std::unordered_map<DmId, DmBlock*> m_blockMap;      ///< 通过 ID 查找块的映射
+    DmBlock*                        m_pActiveBlock = nullptr;  ///< 当前激活的块
 };
 
 #endif

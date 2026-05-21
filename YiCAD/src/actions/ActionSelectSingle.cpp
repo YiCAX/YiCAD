@@ -43,6 +43,13 @@ ActionSelectSingle::ActionSelectSingle(DmDocument* doc,
     actionType = DM::ActionSelectSingle;
 }
 
+/// @brief 初始化单选操作，并禁用点捕捉以避免实体选择落到端点/中点等提示
+void ActionSelectSingle::init(int status)
+{
+    ActionInterface::init(status);
+    getSnapMode()->clear();
+}
+
 /// @brief 执行选择操作：如果捕获到匹配的实体，执行单选
 void ActionSelectSingle::trigger()
 {

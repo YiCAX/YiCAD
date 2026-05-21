@@ -51,8 +51,12 @@ public:
     virtual ~DmDocument();
 
     /// @brief 获取实体表
-    /// @return 实体表指针
+    /// @return 实体表指针（编辑块时返回块的实体表）
     EntityTable* getEntityTable();
+
+    /// @brief 获取文档的实体表（始终返回文档级别，不路由到块表）
+    /// @return 文档实体表指针
+    EntityTable* getDocumentEntityTable() { return m_entityTable; }
 
     /// @brief 获取图层表
     /// @return 图层表指针

@@ -21,6 +21,7 @@
 #include "DmBlock.h"
 
 #include "DmDocument.h"
+#include "DmBlockTable.h"
 #include "DmBlockReference.h"
 #include "DmLine.h"
 #include "DmCircle.h"
@@ -57,8 +58,8 @@ DmBlock::DmBlock()
 
 }
 
-/// @param doc The document this block belongs to.
-/// @param d The data defining the block.
+/// @param doc 该块所属的文档
+/// @param d 块的定义数据
 DmBlock::DmBlock(DmDocument* doc, const DmBlockData& d)
     : DmObject()
     , data(d)
@@ -179,7 +180,7 @@ void DmBlock::toggle()
 
 bool DmBlock::loadTemplate(const QString&)
 {
-    // do nothing
+    // 无需处理
     return false;
 }
 
@@ -241,6 +242,36 @@ QStringList DmBlock::findNestedInsert(const QString& bName)
     }
 
     return bnChain;
+}
+
+void DmBlock::collectNestedBlockNames(QStringList& names, QSet<QString>& visited)
+{
+    if (visited.contains(data.name))
+        return;
+
+    visited.insert(data.name);
+    names.append(data.name);
+
+    DmBlockTable* blockTable = getDocument()->getBlockTable();
+    if (!blockTable)
+        return;
+
+    for (auto e : m_entityTable)
+    {
+        if (e->getEntityType() == DM::EntityBlockReference)
+        {
+            DmBlockReference* ref = static_cast<DmBlockReference*>(e);
+            QString refName = ref->getName();
+            if (!visited.contains(refName))
+            {
+                DmBlock* nestedBlock = blockTable->find(refName);
+                if (nestedBlock)
+                {
+                    nestedBlock->collectNestedBlockNames(names, visited);
+                }
+            }
+        }
+    }
 }
 
 bool DmBlock::hasAttributeDefinitions() const
@@ -324,10 +355,9 @@ void DmBlock::restoreStreamWithRev(InputStream& rdr, int rev)
     if (rev == 0)
     {
     }
-    else //big change, e.g. change supper class of DmBlock
+    else // 发生较大版本变更，例如 DmBlock 的父类发生变化
     {
-        //step1.
-        // read all legacy data one by one
+        // 第一步：逐项读取旧版本数据
     }
 }
 

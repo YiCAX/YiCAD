@@ -991,6 +991,17 @@ DmVector DmEntityContainer::getNearestPointOnEntity(const DmVector& coord, bool 
     if (en && en->isVisible())
     {
         point = en->getNearestPointOnEntity(coord, onEntity, dist, entity);
+        if (!point.valid)
+        {
+            // DmText/DmMText等实体的getNearestPointOnEntity返回无效点，
+            // 回退到getDistanceToPoint以正确计算距离
+            double curDist = en->getDistanceToPoint(coord);
+            if (dist)
+            {
+                *dist = curDist;
+            }
+            point = coord;
+        }
     }
 
     return point;

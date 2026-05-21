@@ -50,7 +50,7 @@ DmBlockReferenceData::DmBlockReferenceData(const QString& _name, DmVector _inser
 {
 }
 
-/// @param parent The document this block belongs to.
+/// @param parent 该块参照所属的父实体
 DmBlockReference::DmBlockReference(DmEntity* parent, const DmBlockReferenceData& d)
     : DmEntity(parent)
     , data(d)
@@ -72,6 +72,7 @@ DmBlockReference::~DmBlockReference()
 DmEntity* DmBlockReference::clone() const
 {
     DmBlockReference* i = new DmBlockReference(*this);
+    i->block = nullptr;
     // 深拷贝子实体
     i->m_subEntities.clear();
     for (auto e : m_subEntities)
@@ -93,8 +94,8 @@ DmBlockReferenceData DmBlockReference::getData() const
     return data;
 }
 
-// Updates the entity buffer of this insert entity. This method
-// needs to be called whenever the block this insert is based on changes.
+// 更新该块参照的子实体缓存。
+// 当其依赖的块定义发生变化时，需要调用此方法。
 void DmBlockReference::update()
 {
     if (updateEnabled == false)
@@ -184,7 +185,7 @@ void DmBlockReference::update()
                     ne->clearObserver();
                 }
                 ne->setUpdateEnabled(false);
-                DmLayer* l = ne->getLayer(); // special fontchar block don't have
+                DmLayer* l = ne->getLayer(); // 特殊字体字符块可能没有图层
 //              if (l && ne->getLayer()->getName() == "0")
 //              {
 //                  ne->setLayer(this->getLayer());
@@ -209,13 +210,13 @@ void DmBlockReference::update()
                 // 子实体画笔不应该根据父类去设置,应在绘制时根据规则拿取正确画笔
 
                 // todo ：不应在此处修改线宽及线型
-                // line width from block (free floating):
+                // 处理来自块的线宽（独立存储）
                 if (tmpPen.getWidth() == DM::WidthByBlock)
                 {
                     tmpPen.setWidth(getPen().getWidth());
                 }
 
-                // line type from block (free floating):
+                // 处理来自块的线型（独立存储）
                 if (tmpPen.getLineType() == DmLineTypeTable::ByBlock)
                 {
                     tmpPen.setLineType(getPen().getLineType());
@@ -452,10 +453,8 @@ void DmBlockReference::setParent(DmEntityContainer* parent)
     block = NULL;
 }
 
-/// @return Pointer to the block associated with this Insert or
-///  nullptr if the block couldn't be found. Blocks are requested
-///  from the blockSource if one was supplied and otherwise from
-///  the closest parent document.
+/// @return 返回与该块参照关联的块定义指针；若未找到则返回 nullptr。
+///         若指定了 blockSource，则优先从其中查找；否则从最近的父文档中查找。
 DmBlock* DmBlockReference::getBlockForInsert() const
 {
     DmBlock* blk = nullptr;
@@ -541,10 +540,9 @@ void DmBlockReference::forcedCalculateBorders()
     }
 }
 
-/// @brief Is this insert visible? (re-implementation from DmEntity)
-/// @return true Only if the entity and the block and the layer it is on are visible.
-/// The Layer might also be nullptr. In that case the layer visibility is ignored.
-/// The Block might also be nullptr. In that case the block visibility is ignored.
+/// @brief 该块参照是否可见（重写自 DmEntity）
+/// @return 仅当实体本身、所属块以及所在图层都可见时返回 true。
+///         图层为 nullptr 时忽略图层可见性；块为 nullptr 时忽略块可见性。
 bool DmBlockReference::isVisible() const
 {
     DmBlock* blk = getBlockForInsert();
@@ -620,6 +618,33 @@ DmVector DmBlockReference::getNearestPointOnEntity(const DmVector& coord, bool o
     }
 
     return point;
+}
+
+DmVector DmBlockReference::getNearestEndpoint(const DmVector& coord, double* dist) const
+{
+    double minDist = DM_MAXDOUBLE;
+    double curDist = DM_MAXDOUBLE;
+    DmVector closestPoint(false);
+    DmVector point;
+
+    for (auto en : m_subEntities)
+    {
+        if (en->isVisible())
+        {
+            point = en->getNearestEndpoint(coord, &curDist);
+            if (point.valid && curDist < minDist)
+            {
+                closestPoint = point;
+                minDist = curDist;
+            }
+        }
+    }
+    if (dist)
+    {
+        *dist = minDist;
+    }
+
+    return closestPoint;
 }
 
 DmVector DmBlockReference::getNearestCenter(const DmVector& coord, double* dist) const
@@ -838,7 +863,7 @@ void DmBlockReference::restoreStream(InputStream& reader, const std::vector<PAIR
             QString sty = QString::fromStdString(style);
             DmTextStyleTable* textStyleTable = getDocument()->getTextStyleTable();
             QString textStr = QString::fromStdString(textString);
-            // use default style for the drawing:
+            // 使用当前图纸的默认文字样式
             if (sty.isEmpty())
             {
                 sty = DEFAULT_TEXTSTYLE_NAME;
@@ -874,9 +899,8 @@ void DmBlockReference::restoreStreamWithRev(InputStream& rdr, int rev)
     if (rev == 0)
     {
     }
-    else //big change, e.g. change supper class of DmBlockReference
+    else // 发生较大版本变更，例如 DmBlockReference 的父类发生变化
     {
-        //step1.
-        // read all legacy data one by one
+        // 第一步：逐项读取旧版本数据
     }
 }

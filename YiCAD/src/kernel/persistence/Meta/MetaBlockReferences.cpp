@@ -43,10 +43,10 @@ void MetaBlcokReferencesContainer::saveXML(Writer& wrt) const
 	std::vector<PAIR> revs;
 	DmBlockReference::getRevId(revs);
 
-	//Insert BlockRef item
+	// 写入块参照节点
 	wrt.Stream() << wrt.ind() << "<BlockReferences" << " levels=\"" << revs.size() << "\"" << " Count=\"" << m_entities.size() << "\"" << " file= \"" << wrt.addFile(BLOCKREFERENCE_BIN, this) << "\">" << std::endl;
 
-	//write type and revision ids
+	// 写入类型及版本号信息
 	{
 		wrt.incInd();
 		for (auto itype : revs)
@@ -68,13 +68,13 @@ void MetaBlcokReferencesContainer::restoreXML(XMLReader& reader)
 	reader.readElement(BLOCKREFERENCES);
 
 	std::string file(reader.getAttribute(BLOCKREFERENCE_FILE));
-	//restore files
+	// 恢复关联文件
 	if (!file.empty())
 	{
 		reader.addFile(file.c_str(), this);
 	}
 
-	//restore levels
+	// 恢复版本层级信息
 	auto ilevels = (size_t)reader.getAttributeAsInteger("levels");
 	for (size_t idx = 0; idx < ilevels; idx++)
 	{
@@ -104,7 +104,7 @@ void MetaBlcokReferencesContainer::restoreStream(InputStream& rdr)
 {
 	while (!rdr.end())
 	{
-		// read all BlcokReferences
+		// 读取所有块参照
 		auto iBlcokReference = new DmBlockReference();
 		iBlcokReference->setDocument(m_pDocument);
 		iBlcokReference->restoreStream(rdr, m_revs);
