@@ -49,6 +49,7 @@ ActionSelectMultiple::ActionSelectMultiple(DmDocument* doc,
 void ActionSelectMultiple::init(int status)
 {
     PreviewActionInterface::init(status);
+    getSnapMode()->clear();
     pPoints.reset(new Points{});
     setStatus(Neutral);
 }
