@@ -121,6 +121,7 @@ public:
     virtual DmVector getNearestRef(const DmVector& coord, double* dist = nullptr) const;
     virtual double getDistanceToPoint(const DmVector& coord, DmEntity** entity = nullptr, DM::ResolveLevel level = DM::ResolveNone) const override;
     virtual DmVector getNearestPointOnEntity(const DmVector& coord, bool onEntity = true, double* dist = nullptr, DmEntity** entity = nullptr) const override;
+    virtual DmVector getNearestEndpoint(const DmVector& coord, double* dist = nullptr) const override;
     virtual DmVector getNearestCenter(const DmVector& coord, double* dist = nullptr) const override;
     virtual DmVector getNearestMiddle(const DmVector& coord, double* dist = nullptr, int middlePoints = 1) const override;
 

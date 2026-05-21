@@ -622,6 +622,33 @@ DmVector DmBlockReference::getNearestPointOnEntity(const DmVector& coord, bool o
     return point;
 }
 
+DmVector DmBlockReference::getNearestEndpoint(const DmVector& coord, double* dist) const
+{
+    double minDist = DM_MAXDOUBLE;
+    double curDist = DM_MAXDOUBLE;
+    DmVector closestPoint(false);
+    DmVector point;
+
+    for (auto en : m_subEntities)
+    {
+        if (en->isVisible())
+        {
+            point = en->getNearestEndpoint(coord, &curDist);
+            if (point.valid && curDist < minDist)
+            {
+                closestPoint = point;
+                minDist = curDist;
+            }
+        }
+    }
+    if (dist)
+    {
+        *dist = minDist;
+    }
+
+    return closestPoint;
+}
+
 DmVector DmBlockReference::getNearestCenter(const DmVector& coord, double* dist) const
 {
     double minDist = DM_MAXDOUBLE;

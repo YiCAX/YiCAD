@@ -170,6 +170,9 @@ void ActionBlocksEdit::enterEditing(DmBlockReference* blockRef)
 
     m_editingBlock = block;
 
+    // 进入编辑前取消所有选中状态，避免 undo 退出后块参照仍显示为选中
+    blockRef->setSelected(false);
+
     // Create a transaction with BlockEditEnterCmd
     // Use addToCurrentCmd() NOT addAndExecuteCmd() to avoid double execute
     Transaction t("Block Edit Begin", pDocument);
