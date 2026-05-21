@@ -73,8 +73,8 @@ void UIBlockEditOptions::onCompleteClicked()
     if (m_action->hasModifications())
     {
         int ret = QMessageBox::question(nullptr,
-            QObject::tr("Block Edit"),
-            QObject::tr("Save changes to block?"),
+            tr("Block Edit"),
+            tr("Save changes to block?"),
             QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
 
         if (ret == QMessageBox::Yes)

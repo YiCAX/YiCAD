@@ -1632,7 +1632,7 @@ void ApplicationWindow::createCategoryDraw2d(SARibbonCategory* page)
 	blockGroup->addAction(deleteBlock);
 	connect(deleteBlock, SIGNAL(triggered()), m_pActionHandler, SLOT(slotBlocksDelete()));
 
-	// 在位编辑图块
+	// 编辑图块
 	auto editBlock = createAction(QObject::tr("Edit Block"), ":/ribbon/block/block_edit.svg");
 	blockGroup->addAction(editBlock);
 	connect(editBlock, SIGNAL(triggered()), m_pActionHandler, SLOT(slotBlocksEdit()));

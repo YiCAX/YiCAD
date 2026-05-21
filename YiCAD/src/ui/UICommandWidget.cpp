@@ -114,7 +114,7 @@ void UICommandWidget::createLineEdit()
 	m_pEdit = new QLineEdit(m_cmdWin);
 	m_pEdit->resize(345, 20);
 	m_pEdit->move(30, 5);
-	m_pEdit->setPlaceholderText(QObject::tr("Command"));
+	m_pEdit->setPlaceholderText(tr("Command"));
 	m_pEdit->setAutoFillBackground(true);
 	connect(m_pEdit, SIGNAL(returnPressed()), this, SLOT(pressShowTextEdit()));
 }

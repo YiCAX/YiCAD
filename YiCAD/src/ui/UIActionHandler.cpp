@@ -628,8 +628,8 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 		if (m_pDocument->getEditingBlock() != nullptr)
 		{
 			QMessageBox::warning(nullptr,
-				QObject::tr("Block Edit"),
-				QObject::tr("Cannot edit block references while already editing a block."));
+				tr("Block Edit"),
+				tr("Cannot edit block references while already editing a block."));
 			break;
 		}
 		if (!m_pDocument->getEntityTable()->hasSelect())
@@ -643,8 +643,8 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 			if (m_pDocument->getEditingBlock() != nullptr)
 			{
 				QMessageBox::warning(nullptr,
-					QObject::tr("Block Edit"),
-					QObject::tr("Cannot edit block references while already editing a block."));
+					tr("Block Edit"),
+					tr("Cannot edit block references while already editing a block."));
 				break;
 			}
 			DmBlockReference* selectedRef = nullptr;
