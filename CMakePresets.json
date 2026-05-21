@@ -7,10 +7,9 @@
     },
     "configurePresets": [
         {
-            "name": "windows-base",
+            "name": "windows-ninja-base",
             "hidden": true,
-            "generator": "Visual Studio 17 2022",
-            "toolset": "v143",
+            "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
@@ -19,8 +18,8 @@
         {
             "name": "Debug",
             "displayName": "Debug",
-            "description": "调试版本，包含调试符号",
-            "inherits": "windows-base",
+            "description": "Debug preset using Ninja",
+            "inherits": "windows-ninja-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug"
             }
@@ -28,8 +27,8 @@
         {
             "name": "Release",
             "displayName": "Release",
-            "description": "发布版本，优化性能",
-            "inherits": "windows-base",
+            "description": "Release preset using Ninja",
+            "inherits": "windows-ninja-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
@@ -37,8 +36,8 @@
         {
             "name": "RelWithDebInfo",
             "displayName": "Release with Debug Info",
-            "description": "带调试信息的发布版本",
-            "inherits": "windows-base",
+            "description": "RelWithDebInfo preset using Ninja",
+            "inherits": "windows-ninja-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo"
             }
@@ -47,18 +46,15 @@
     "buildPresets": [
         {
             "name": "Debug",
-            "configurePreset": "Debug",
-            "configuration": "Debug"
+            "configurePreset": "Debug"
         },
         {
             "name": "Release",
-            "configurePreset": "Release",
-            "configuration": "Release"
+            "configurePreset": "Release"
         },
         {
             "name": "RelWithDebInfo",
-            "configurePreset": "RelWithDebInfo",
-            "configuration": "RelWithDebInfo"
+            "configurePreset": "RelWithDebInfo"
         }
     ]
 }
