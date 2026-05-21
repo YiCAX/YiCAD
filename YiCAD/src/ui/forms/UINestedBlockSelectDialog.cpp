@@ -64,7 +64,7 @@ UINestedBlockSelectDialog::UINestedBlockSelectDialog(
 
     auto* contentLayout = new QHBoxLayout();
 
-    // Left: block list
+    // 左侧：块层级列表
     auto* leftLayout = new QVBoxLayout();
     auto* listLabel = new QLabel(tr("Block Levels:"), this);
     leftLayout->addWidget(listLabel);
@@ -77,7 +77,7 @@ UINestedBlockSelectDialog::UINestedBlockSelectDialog(
     leftLayout->addWidget(m_listWidget);
     contentLayout->addLayout(leftLayout, 1);
 
-    // Right: preview
+    // 右侧：预览区
     auto* rightLayout = new QVBoxLayout();
     auto* previewLabel = new QLabel(tr("Preview:"), this);
     rightLayout->addWidget(previewLabel);
@@ -89,7 +89,7 @@ UINestedBlockSelectDialog::UINestedBlockSelectDialog(
 
     mainLayout->addLayout(contentLayout);
 
-    // Bottom: buttons
+    // 底部：操作按钮
     m_buttonBox = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     mainLayout->addWidget(m_buttonBox);
@@ -99,7 +99,7 @@ UINestedBlockSelectDialog::UINestedBlockSelectDialog(
     connect(m_buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(m_buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
-    // Select first item
+    // 默认选中第一项
     if (m_listWidget->count() > 0)
     {
         m_listWidget->setCurrentRow(0);
@@ -133,7 +133,7 @@ void UINestedBlockSelectDialog::onSelectionChanged(int row)
     if (!block)
         return;
 
-    // Clear and repopulate preview container
+    // 清空并重新填充预览容器
     m_previewContainer->clear();
     for (auto e : block->getEntityTable())
     {

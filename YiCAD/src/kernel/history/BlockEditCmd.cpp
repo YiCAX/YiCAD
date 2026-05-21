@@ -29,7 +29,7 @@
 #include "GuiDocumentView.h"
 
 // ============================================================================
-// Helper: find all block names affected by editing a given block
+// 辅助函数：查找编辑指定块后会受影响的所有块名称
 // ============================================================================
 
 static QSet<QString> getAllAffectedBlockNames(DmDocument* doc, const QString& editedBlockName)
@@ -68,7 +68,7 @@ static QSet<QString> getAllAffectedBlockNames(DmDocument* doc, const QString& ed
 }
 
 // ============================================================================
-// BlockEditEnterCmd
+// BlockEditEnterCmd：进入块编辑命令
 // ============================================================================
 
 BlockEditEnterCmd::BlockEditEnterCmd(DmDocument* doc, const QString& blockName,
@@ -167,7 +167,7 @@ void BlockEditEnterCmd::updateBlockRefs()
 }
 
 // ============================================================================
-// BlockEditExitCmd
+// BlockEditExitCmd：退出块编辑命令
 // ============================================================================
 
 BlockEditExitCmd::BlockEditExitCmd(DmDocument* doc, const QString& blockName,
@@ -190,8 +190,8 @@ void BlockEditExitCmd::execute()
 
     if (m_save)
     {
-        // setEditBlock(nullptr) has been called, so getEntityTable()
-        // now returns the document's entity table
+        // 此时已经调用 setEditBlock(nullptr)，因此 getEntityTable()
+        // 现在返回的是文档实体表
         updateBlockRefs();
     }
 

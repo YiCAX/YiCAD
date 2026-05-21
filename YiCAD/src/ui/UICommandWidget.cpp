@@ -55,6 +55,7 @@ UICommandWidget::UICommandWidget(QWidget* parent, UITabDrawWidget* tabDrawWidget
 	setBtn->setIconSize(QSize(20, 20));
 	setBtn->move(5, 5);
 	setBtn->setIcon(QIcon(":/ribbon/cmd/cmd.svg"));
+	setBtn->setToolTip(tr("Command"));
 	setBtn->setStyleSheet("border: none lightgrey;");
 
 	//----------------------------------------------------信息板-----------------------------------------------------------------
@@ -102,6 +103,7 @@ void UICommandWidget::createTriangleBtn()
 	btn->setAutoFillBackground(true);
 	btn->setIcon(QIcon(":/ribbon/cmd/arrow_up.svg"));
 	btn->setIconSize(QSize(20, 20));
+	btn->setToolTip(tr("Show command history"));
 	//btn->setStyleSheet("border: none lightgrey;");
 	//btn->setArrowType(Qt::ArrowType::UpArrow);
 	connect(btn, SIGNAL(clicked()), this, SLOT(btnShowTextEdit()));
@@ -112,7 +114,7 @@ void UICommandWidget::createLineEdit()
 	m_pEdit = new QLineEdit(m_cmdWin);
 	m_pEdit->resize(345, 20);
 	m_pEdit->move(30, 5);
-	m_pEdit->setPlaceholderText(QObject::tr("command"));
+	m_pEdit->setPlaceholderText(QObject::tr("Command"));
 	m_pEdit->setAutoFillBackground(true);
 	connect(m_pEdit, SIGNAL(returnPressed()), this, SLOT(pressShowTextEdit()));
 }

@@ -39,6 +39,7 @@ UIBlockEditOptions::UIBlockEditOptions(QWidget* parent, Qt::WindowFlags fl)
     m_label->setText(tr("Editing Block:"));
 
     m_completeButton = new QPushButton(tr("Complete"), this);
+    m_completeButton->setToolTip(tr("Complete block editing"));
     connect(m_completeButton, &QPushButton::clicked, this, &UIBlockEditOptions::onCompleteClicked);
 
     layout->addWidget(m_label);
@@ -68,7 +69,7 @@ void UIBlockEditOptions::onCompleteClicked()
     if (!m_action)
         return;
 
-    // Show save prompt if there are modifications
+    // 如果存在修改，则弹出保存确认提示
     if (m_action->hasModifications())
     {
         int ret = QMessageBox::question(nullptr,
@@ -84,7 +85,7 @@ void UIBlockEditOptions::onCompleteClicked()
         {
             m_action->completeEditing(false);
         }
-        // Cancel: continue editing
+        // 取消：继续编辑
     }
     else
     {

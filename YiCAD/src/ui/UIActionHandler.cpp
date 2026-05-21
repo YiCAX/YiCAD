@@ -1570,10 +1570,10 @@ void UIActionHandler::slotCmdStateChanged()
 		return;
 
 	DmBlock* editingBlock = m_pDocument->getEditingBlock();
-	// Scan the full action stack, not just getCurrentAction().
-	// When a command action (e.g. ActionEditUndo, ActionDrawLine) is
-	// stacked on top of ActionBlocksEdit, getCurrentAction() returns
-	// the top action, hiding the block edit.
+	// 扫描完整动作栈，而不是只看 getCurrentAction()。
+	// 当命令动作（如 ActionEditUndo、ActionDrawLine）压在
+	// ActionBlocksEdit 之上时，getCurrentAction() 返回的是栈顶动作，
+	// 会把块编辑动作隐藏掉。
 	ActionInterface* blockEditAction = nullptr;
 	for (auto* a : m_pView->getEventHandler()->getCurrentActionsRef())
 	{
@@ -1588,10 +1588,10 @@ void UIActionHandler::slotCmdStateChanged()
 
 	if (editingBlock && !inBlockEdit)
 	{
-		// undo/redo re-entered block edit mode: find matching block ref,
-		// create a new ActionBlocksEdit
-		// Use getDocumentEntityTable() because getEntityTable() routes to
-		// the block's table when editingBlock is set
+		// 撤销/重做后重新进入块编辑：找到匹配的块参照，
+		// 重新创建一个 ActionBlocksEdit
+		// 这里使用 getDocumentEntityTable()，因为 editingBlock 已设置时，
+		// getEntityTable() 会路由到块自己的实体表
 		DmBlockReference* ref = nullptr;
 		for (auto e : *m_pDocument->getDocumentEntityTable())
 		{
@@ -1611,7 +1611,7 @@ void UIActionHandler::slotCmdStateChanged()
 	}
 	else if (!editingBlock && inBlockEdit)
 	{
-		// undo/redo exited block edit mode: end the ActionBlocksEdit
+		// 撤销/重做后退出了块编辑：结束 ActionBlocksEdit
 		blockEditAction->finish();
 	}
 }
@@ -1623,7 +1623,7 @@ void UIActionHandler::set_view(GuiDocumentView* pDocumentView)
 void UIActionHandler::set_document(DmDocument* doc)
 {
 	m_pDocument = doc;
-	// Connect cmdChanged signal to handle block edit re-entry via undo/redo
+	// 连接 cmdChanged 信号，用于处理撤销/重做导致的块编辑重新进入
 	if (m_pDocument && m_pDocument->getCmdManager())
 	{
 		connect(m_pDocument->getCmdManager(), &CmdManager::cmdChanged,

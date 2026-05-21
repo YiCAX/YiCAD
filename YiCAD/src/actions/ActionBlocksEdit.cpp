@@ -62,16 +62,16 @@ void ActionBlocksEdit::init(int status)
 {
     ActionInterface::init(status);
 
-    // Check for re-entry via undo/redo
+    // 检查是否通过撤销/重做重新进入块编辑
     DmBlock* editingBlock = pDocument->getEditingBlock();
     if (editingBlock)
     {
-        // Re-entry via undo: block is already set, just restore UI
+        // 通过撤销重新进入：块已设置好，只需恢复界面状态
         reenterEditing(editingBlock);
         return;
     }
 
-    // Normal entry: need a selected block reference
+    // 正常进入：需要已有选中的块参照
     if (!m_blockRefBeingEdited)
     {
         GUIDIALOGFACTORY->commandMessage(
@@ -87,7 +87,7 @@ void ActionBlocksEdit::init(int status)
 /// @brief 触发动作执行
 void ActionBlocksEdit::trigger()
 {
-    // Not used in the new design; init() handles everything
+    // 新设计中不再使用；初始化逻辑全部放在 init() 中处理
 }
 
 /// @brief 重新进入编辑模式（通过Undo/Redo）
@@ -129,14 +129,14 @@ void ActionBlocksEdit::enterEditing(DmBlockReference* blockRef)
         return;
     }
 
-    // Check for nested blocks
+    // 检查是否存在嵌套块
     QStringList nestedNames;
     QSet<QString> visited;
     block->collectNestedBlockNames(nestedNames, visited);
 
     if (nestedNames.size() > 1)
     {
-        // Show nested block selection dialog
+        // 弹出嵌套块选择对话框
         UINestedBlockSelectDialog dlg(pDocument, nestedNames, nullptr);
         if (dlg.exec() != QDialog::Accepted)
         {
@@ -173,15 +173,15 @@ void ActionBlocksEdit::enterEditing(DmBlockReference* blockRef)
     // 进入编辑前取消所有选中状态，避免 undo 退出后块参照仍显示为选中
     blockRef->setSelected(false);
 
-    // Create a transaction with BlockEditEnterCmd
-    // Use addToCurrentCmd() NOT addAndExecuteCmd() to avoid double execute
+    // 使用 BlockEditEnterCmd 创建事务
+    // 使用 addToCurrentCmd()，不要使用 addAndExecuteCmd()，避免重复执行
     Transaction t("Block Edit Begin", pDocument);
     t.start();
     auto* enterCmd = new BlockEditEnterCmd(pDocument, m_blockName, docView);
     pDocument->getCmdManager()->addToCurrentCmd(enterCmd);
     t.commit();
 
-    // Save the macro command for cancel support
+    // 保存宏命令，供取消编辑时定位回滚位置
     CmdManager* cmdMgr = pDocument->getCmdManager();
     m_enterMacroCmd = cmdMgr->getLastUndoCmd();
     m_undoCountAtEnter = cmdMgr->getUndoCount();
@@ -207,7 +207,7 @@ void ActionBlocksEdit::completeEditing(bool save)
     DmBlock* editingBlock = pDocument->getEditingBlock();
     if (editingBlock)
     {
-        // Create a transaction with BlockEditExitCmd
+        // 使用 BlockEditExitCmd 创建事务
         Transaction t("Block Edit End", pDocument);
         t.start();
         auto* exitCmd = new BlockEditExitCmd(pDocument, m_blockName, docView, save);
@@ -237,19 +237,19 @@ void ActionBlocksEdit::cancelEditing()
 
     if (m_enterMacroCmd)
     {
-        // Find the enter command and roll back everything after it
+        // 找到进入编辑命令，并回滚其后的所有命令
         int index = cmdMgr->indexOfCmd(m_enterMacroCmd);
         if (index != -1)
         {
-            // This undoes and deletes all commands from the enter to current,
-            // including the enter command itself (which calls setEditBlock(nullptr))
+            // 这里会撤销并删除从进入编辑到当前的所有命令，
+            // 包括进入编辑命令本身（其内部会调用 setEditBlock(nullptr)）
             cmdMgr->rollbackAndRemoveAfter(index);
         }
         m_enterMacroCmd = nullptr;
     }
     else
     {
-        // Re-entry case or no enter command: just exit edit mode
+        // 重新进入场景或未记录进入命令时：直接退出编辑模式
         DmBlock* editingBlock = pDocument->getEditingBlock();
         if (editingBlock)
         {
@@ -338,7 +338,7 @@ void ActionBlocksEdit::mouseReleaseEvent(QMouseEvent* e)
             {
                 completeEditing(false);
             }
-            // Cancel: continue editing
+            // 取消：继续编辑
         }
         else
         {

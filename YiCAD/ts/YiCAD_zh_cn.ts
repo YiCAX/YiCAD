@@ -137,6 +137,18 @@
         <source>Editing block: %1</source>
         <translation>正在编辑块：%1</translation>
     </message>
+    <message>
+        <location filename="../src/actions/ActionBlocksEdit.cpp" line="116"/>
+        <location filename="../src/actions/ActionBlocksEdit.cpp" line="150"/>
+        <source>Block definition not found: %1</source>
+        <translation>未找到块定义：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ActionBlocksEdit.cpp" line="103"/>
+        <location filename="../src/actions/ActionBlocksEdit.cpp" line="194"/>
+        <source>Editing block: %1</source>
+        <translation>正在编辑块：%1</translation>
+    </message>
 </context>
 <context>
     <name>ActionBlocksImport</name>
@@ -5594,6 +5606,18 @@ This action can NOT be undone.</source>
         <comment>escape, go back from action steps</comment>
         <translation>取消</translation>
     </message>
+    <message>
+        <location filename="../src/ui/UIActionHandler.cpp" line="631"/>
+        <location filename="../src/ui/UIActionHandler.cpp" line="646"/>
+        <source>Block Edit</source>
+        <translation>块编辑</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/UIActionHandler.cpp" line="632"/>
+        <location filename="../src/ui/UIActionHandler.cpp" line="647"/>
+        <source>Cannot edit block references while already editing a block.</source>
+        <translation>当前已在编辑块，不能再次编辑块参照。</translation>
+    </message>
 </context>
 <context>
     <name>UIArcTangentialOptions</name>
@@ -5871,9 +5895,42 @@ This action can NOT be undone.</source>
         <translation>完成</translation>
     </message>
     <message>
-        <location filename="../src/ui/forms/UIBlockEditOptions.cpp" line="60"/>
+        <location filename="../src/ui/forms/UIBlockEditOptions.cpp" line="44"/>
+        <source>Complete block editing</source>
+        <translation>完成块编辑</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/forms/UIBlockEditOptions.cpp" line="61"/>
         <source>Editing Block: &quot;%1&quot;</source>
         <translation>正在编辑块：&quot;%1&quot;</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/forms/UIBlockEditOptions.cpp" line="76"/>
+        <source>Block Edit</source>
+        <translation>块编辑</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/forms/UIBlockEditOptions.cpp" line="77"/>
+        <source>Save changes to block?</source>
+        <translation>是否保存对块的修改？</translation>
+    </message>
+</context>
+<context>
+    <name>UINestedBlockSelectDialog</name>
+    <message>
+        <location filename="../src/ui/forms/UINestedBlockSelectDialog.cpp" line="55"/>
+        <source>Select Block to Edit</source>
+        <translation>选择要编辑的块</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/forms/UINestedBlockSelectDialog.cpp" line="64"/>
+        <source>Block Levels:</source>
+        <translation>块层级：</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/forms/UINestedBlockSelectDialog.cpp" line="77"/>
+        <source>Preview:</source>
+        <translation>预览:</translation>
     </message>
 </context>
 <context>
@@ -6080,7 +6137,22 @@ This action can NOT be undone.</source>
 <context>
     <name>UICommandWidget</name>
     <message>
-        <location filename="../src/ui/UICommandWidget.cpp" line="265"/>
+        <location filename="../src/ui/UICommandWidget.cpp" line="52"/>
+        <source>Command</source>
+        <translation>命令</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/UICommandWidget.cpp" line="96"/>
+        <source>Show command history</source>
+        <translation>显示命令历史</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/UICommandWidget.cpp" line="108"/>
+        <source>Command</source>
+        <translation>命令</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/UICommandWidget.cpp" line="268"/>
         <source>Unknown command</source>
         <translation>未知命令</translation>
     </message>

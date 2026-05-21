@@ -37,7 +37,7 @@ public:
 	/// @brief 析构函数
 	virtual ~MetaBlcokReferencesContainer() {};
 
-	//persistent helper
+	// 持久化辅助接口
 	/// @brief 获取内存大小
 	/// @return 内存大小（字节）
 	unsigned int getMemSize() const override;

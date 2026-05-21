@@ -42,9 +42,9 @@ struct DmBlockData
     QString pathName;
     QString modifyDate;
     bool isMidify = false;
-    bool frozen = false;               ///< Frozen flag
-    bool visibleInBlockList = true;    ///< Visible in block list
-    bool selectedInBlockList = false;  ///< selected in block list
+    bool frozen = false;               ///< 冻结标志
+    bool visibleInBlockList = true;    ///< 是否在块列表中可见
+    bool selectedInBlockList = false;  ///< 是否在块列表中被选中
 };
 
 /// @brief 图块定义
@@ -56,8 +56,8 @@ class DmBlock : public DmObject
 
 public:
     DmBlock();
-    /// @param doc The document this block belongs to.
-    /// @param blockData defining data of the block.
+    /// @param doc 该块所属的文档
+    /// @param blockData 块的定义数据
     DmBlock(DmDocument* doc, const DmBlockData& d);
 
     virtual ~DmBlock();
@@ -75,10 +75,10 @@ public:
 
     bool blockIsModify();
     void setBlockIsModify(bool is);
-    /// @return Name of this block (the name is an Id for this block).
+    /// @return 该块的名称（名称是该块的唯一标识）
     QString getName() const;
 
-    /// @return base point of this block.
+    /// @return 该块的基点
     DmVector getBasePoint() const;
     void setBasePoint(const DmVector& pt);
 
@@ -90,34 +90,33 @@ public:
 
     bool loadTemplate(const QString&);
 
-    // sets a new name for the block. Only called by blocklist to
-    // assure that block names stay unique.
+    // 为块设置新名称，仅供块列表调用以保证块名唯一。
     void setName(const QString& n);
 
-    /// @retval true if this block is frozen (invisible)
-    /// @retval false if this block isn't frozen (visible)
+    /// @retval true 该块已冻结（不可见）
+    /// @retval false 该块未冻结（可见）
     bool isFrozen() const;
 
-    // Toggles the visibility of this block.
-    // Freezes the block if it's not frozen, thaws the block otherwise
+    // 切换该块的可见状态。
+    // 未冻结则冻结，已冻结则解冻。
     void toggle();
 
-    /// (De-)freezes this block.
-    /// @param freeze true: freeze, false: defreeze
+    /// 冻结或解冻该块。
+    /// @param freeze true 表示冻结，false 表示解冻
     void freeze(bool freeze);
 
-    /// Sets the visibility of the Block in block list
-    /// @param v true: visible, false: invisible
+    /// 设置该块在块列表中的可见性
+    /// @param v true 表示可见，false 表示不可见
     void visibleInBlockList(bool v);
 
-    /// @brief Returns the visibility of the Block in block list
+    /// @brief 返回该块在块列表中的可见性
     bool isVisibleInBlockList() const;
 
-    /// @brief Sets selection state of the block in block list
-    /// @param v true: selected, false: deselected
+    /// @brief 设置该块在块列表中的选中状态
+    /// @param v true 表示选中，false 表示取消选中
     void selectedInBlockList(bool v);
 
-    /// @brief Returns selection state of the block in block list
+    /// @brief 返回该块在块列表中的选中状态
     bool isSelectedInBlockList() const;
 
     QStringList findNestedInsert(const QString& bName);
@@ -136,7 +135,7 @@ public:
     EntityTable& getEntityTable() { return m_entityTable; }
     const EntityTable& getEntityTable() const { return m_entityTable; }
 
-    // persistent helper
+    // 持久化辅助接口
     virtual void saveStream(OutputStream& wrt) const override;
     virtual void restoreStream(InputStream& reader, const std::vector<PAIR>& revs) override;
     virtual void restoreStreamWithRev(InputStream& rdr, int rev) override;
