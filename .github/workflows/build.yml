@@ -28,7 +28,7 @@ jobs:
         run: |
           $tag = "${{ github.ref_name }}"
           $version = $tag -replace '^v', ''
-          Compress-Archive -Path build/bin/Release/* -DestinationPath "YiCAD-${version}-win64.zip"
+          Compress-Archive -Path build/Release/* -DestinationPath "YiCAD-${version}-win64.zip"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
