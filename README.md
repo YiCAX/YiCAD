@@ -23,18 +23,30 @@ YiCAD 是一个开源的 2D CAD 应用程序，功能类似 AutoCAD，使用 **C
 
 ## 构建
 
+### 第三方库
+
+CMake 配置时会自动检查 `ThirdParty/` 目录，如不存在则自动下载第三方库压缩包并解压。也可以手动从以下地址下载：
+
+> **手动下载地址：** [https://github.com/YiCAX/YiCAD/releases/download/thirdparty%2F2026-05-12/ThirdParty.zip](https://github.com/YiCAX/YiCAD/releases/download/thirdparty%2F2026-05-12/ThirdParty.zip)
+
+将下载的 `ThirdParty.zip` 解压到项目根目录即可。
+
+| 库 | 用途 |
+|----|------|
+| [SARibbonBar](https://github.com/czyt1988/SARibbonBar) | Office 风格 Ribbon 界面 |
+| [Boost 1.90](https://www.boost.org/) | 一元四次方程求解等 |
+| [CGAL 6.1](https://www.cgal.org/) | 计算几何算法库 |
+| [muparser](https://beltoforion.de/en/muparser/) | 数学表达式解析 |
+| [nlohmann/json](https://github.com/nlohmann/json) | JSON 序列化 |
+| [mimalloc](https://github.com/microsoft/mimalloc) | 高性能内存分配 |
+
 ### 依赖
 
 - **CMake** 3.10+
 - **Visual Studio 2022** (Windows)
-- **Qt 5.15**
-- **Boost 1.90** (已内置于 ThirdParty)
-- **CGAL 6.1** (已内置于 ThirdParty)
-- **OpenGL** / GLEW / GLM
-- **Xerces-C** (XML 解析)
-- **FreeType** (文字渲染)
-- **mimalloc** (内存分配器)
-- **Eigen** (线性代数)
+- **Qt 5.15**, **Boost 1.90**, **CGAL 6.1**, **OpenGL** / GLEW / GLM, **Xerces-C**, **FreeType**, **mimalloc**, **Eigen**（均内置于 ThirdParty）
+- **SARibbonBar**
+- **muparser**
 
 ### Windows
 
@@ -48,13 +60,10 @@ cmake --build build --config Release
 # 编译 Debug
 cmake --build build --config Debug
 
-# 输出位置: build/bin/Release/YiCAD.exe
-```
-
-### 安装
-
-```bash
+# 安装
 cmake --install build --config Release
+
+# 输出位置: build/bin/Release/YiCAD.exe
 ```
 
 > **注意：** Linux 后续支持。
@@ -73,23 +82,6 @@ cmake --install build --config Release
 | **数学计算** | `YiCAD/src/kernel/math/` | 计算几何、KD树、R树、Delaunay三角剖分 |
 | **渲染** | `YiCAD/src/kernel/painters/` | OpenGL 绘制抽象层 |
 | **持久化** | `YiCAD/src/kernel/persistence/` | XML 序列化 (Xerces-C) |
-
-## 第三方库
-
-CMake 配置时会自动检查 `ThirdParty/` 目录，如不存在则自动下载第三方库压缩包并解压。也可以手动从以下地址下载：
-
-> **手动下载地址：** [http://www.yicax.com/forum/download/](http://www.yicax.com/forum/download/)
-
-将下载的 `ThirdParty.zip` 解压到项目根目录即可。
-
-| 库 | 用途 |
-|----|------|
-| [SARibbonBar](https://github.com/czyt1988/SARibbonBar) | Office 风格 Ribbon 界面 |
-| [Boost 1.90](https://www.boost.org/) | 一元四次方程求解等 |
-| [CGAL 6.1](https://www.cgal.org/) | 计算几何算法库 |
-| [muparser](https://beltoforion.de/en/muparser/) | 数学表达式解析 |
-| [nlohmann/json](https://github.com/nlohmann/json) | JSON 序列化 |
-| [mimalloc](https://github.com/microsoft/mimalloc) | 高性能内存分配 |
 
 ## 开发
 
