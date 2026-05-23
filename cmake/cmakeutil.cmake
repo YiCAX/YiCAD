@@ -142,12 +142,11 @@ function(download_thirdparty)
         return()
     endif()
 
-    set(THIRDPARTY_URL "http://www.yicax.com/forum/downloads/2026-05-12/ThirdParty.zip")
+    set(THIRDPARTY_URL "https://github.com/YiCAX/YiCAD/releases/download/thirdparty/2026-05-12/ThirdParty.zip")
     set(THIRDPARTY_ZIP "${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty.zip")
 
     message(STATUS "正在下载 ThirdParty.zip，请稍候...")
     file(DOWNLOAD "${THIRDPARTY_URL}" "${THIRDPARTY_ZIP}"
-         TLS_VERIFY OFF
          STATUS DOWNLOAD_STATUS
          TIMEOUT 600
          SHOW_PROGRESS)

@@ -7,9 +7,8 @@
     },
     "configurePresets": [
         {
-            "name": "windows-ninja-base",
+            "name": "windows-base",
             "hidden": true,
-            "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
@@ -18,8 +17,8 @@
         {
             "name": "Debug",
             "displayName": "Debug",
-            "description": "Debug preset using Ninja",
-            "inherits": "windows-ninja-base",
+            "description": "Debug preset",
+            "inherits": "windows-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug"
             }
@@ -27,8 +26,8 @@
         {
             "name": "Release",
             "displayName": "Release",
-            "description": "Release preset using Ninja",
-            "inherits": "windows-ninja-base",
+            "description": "Release preset",
+            "inherits": "windows-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
@@ -36,8 +35,8 @@
         {
             "name": "RelWithDebInfo",
             "displayName": "Release with Debug Info",
-            "description": "RelWithDebInfo preset using Ninja",
-            "inherits": "windows-ninja-base",
+            "description": "RelWithDebInfo preset",
+            "inherits": "windows-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo"
             }

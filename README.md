@@ -2,6 +2,8 @@
 
 YiCAD 是一个开源的 2D CAD 应用程序，功能类似 AutoCAD，使用 **C++23** 和 **Qt 5.15** 开发，基于 **OpenGL** 进行高性能图形渲染。
 
+![YiCAD 界面](screenshot.png)
+
 当前版本：**v0.5**
 
 ## 功能特性
@@ -24,7 +26,7 @@ YiCAD 是一个开源的 2D CAD 应用程序，功能类似 AutoCAD，使用 **C
 ### 依赖
 
 - **CMake** 3.10+
-- **Visual Studio 2022** (Windows) 或 GCC (Linux)
+- **Visual Studio 2022** (Windows)
 - **Qt 5.15**
 - **Boost 1.90** (已内置于 ThirdParty)
 - **CGAL 6.1** (已内置于 ThirdParty)
@@ -49,19 +51,13 @@ cmake --build build --config Debug
 # 输出位置: build/bin/Release/YiCAD.exe
 ```
 
-### Linux
+### 安装
 
 ```bash
-cmake -S . -B build
-cmake --build build --config Release
+cmake --install build --config Release
 ```
 
-### CMake 选项
-
-| 选项 | 说明 |
-|------|------|
-| `UPDATE_TRANSLATIONS=ON` | 构建时更新 .ts 翻译文件 |
-| `USE_VISUAL_LEAK_DETECTOR=ON` | Debug 模式下启用 VLD 内存泄漏检测 |
+> **注意：** Linux 后续支持。
 
 ## 架构概览
 
