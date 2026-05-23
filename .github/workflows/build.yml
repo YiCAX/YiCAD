@@ -26,6 +26,9 @@ jobs:
       - name: Build
         run: cmake --build --preset Release --config Release
 
+      - name: Install
+        run: cmake --install build --config Release
+  
       - name: Package
         run: |
           $tag = "${{ github.ref_name }}"
