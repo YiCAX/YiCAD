@@ -27,7 +27,7 @@ jobs:
         run: cmake --build --preset Release --config Release
 
       - name: Install
-        run: cmake --install build --preset Release --config Release
+        run: cmake --install build/Release --config Release
   
       - name: Package
         run: |
