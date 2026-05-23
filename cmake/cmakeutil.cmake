@@ -102,8 +102,8 @@ if(NOT QT_NO_CREATE_VERSIONLESS_FUNCTIONS)
 endif()
 
 # 使用 visual leak detector(VLD)来探测内存泄漏
-# 需要指定USE_VISUAL_LEAK_DETECTOR为ON， 并且环境变量PATH中存在Visual Leak Detector安装路径。VLD的使用方法为在main()所在cpp #include "vld.h"，编译运行Debug，然后正常退出程序。
-# 如果需要将记录输出到文件，在VLD安装路径编辑vld.ini，编辑“ReportTo = both”，默认输出文件为memory_leak_report.txt。
+# 需要指定USE_VISUAL_LEAK_DETECTOR为ON， 并且环境变量PATH中存在Visual Leak Detector安装路径。VLD的使用方法为在main()所在cpp #include "vld.h"，编译运行Debug，然[...]
+# 如果需要将记录输出到文件，在VLD安装路径编辑vld.ini，编辑"ReportTo = both"，默认输出文件为memory_leak_report.txt。
 function(use_visual_leak_detector target)
     if(NOT USE_VISUAL_LEAK_DETECTOR OR NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
         return()
@@ -139,31 +139,99 @@ function(download_thirdparty)
     set(THIRDPARTY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty")
 
     if(EXISTS "${THIRDPARTY_DIR}")
+        message(STATUS "✓ ThirdParty 目录已存在，跳过下载")
         return()
     endif()
 
     set(THIRDPARTY_URL "https://github.com/YiCAX/YiCAD/releases/download/thirdparty/2026-05-12/ThirdParty.zip")
     set(THIRDPARTY_ZIP "${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty.zip")
 
-    message(STATUS "正在下载 ThirdParty.zip，请稍候...")
-    file(DOWNLOAD "${THIRDPARTY_URL}" "${THIRDPARTY_ZIP}"
-         STATUS DOWNLOAD_STATUS
-         TIMEOUT 600
-         SHOW_PROGRESS)
+    message(STATUS "========================================")
+    message(STATUS "正在下载 ThirdParty.zip")
+    message(STATUS "URL: ${THIRDPARTY_URL}")
+    message(STATUS "目标路径: ${THIRDPARTY_ZIP}")
+    message(STATUS "CMake 版本: ${CMAKE_VERSION}")
+    message(STATUS "系统: ${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_VERSION}")
+    message(STATUS "========================================")
+    
+    # 重试机制：最多尝试 3 次
+    set(MAX_RETRIES 3)
+    set(RETRY_COUNT 0)
+    set(DOWNLOAD_SUCCESS FALSE)
+    
+    while(RETRY_COUNT LESS MAX_RETRIES AND NOT DOWNLOAD_SUCCESS)
+        if(RETRY_COUNT GREATER 0)
+            message(STATUS "")
+            message(STATUS "第 ${RETRY_COUNT}/${MAX_RETRIES} 次重试...")
+            file(REMOVE "${THIRDPARTY_ZIP}")
+        endif()
+        
+        # 增加超时时间到 1800 秒（30分钟），并启用详细日志
+        message(STATUS "[${RETRY_COUNT}] 开始下载... (超时: 1800秒)")
+        file(DOWNLOAD "${THIRDPARTY_URL}" "${THIRDPARTY_ZIP}"
+             STATUS DOWNLOAD_STATUS
+             TIMEOUT 1800
+             SHOW_PROGRESS
+             LOG DOWNLOAD_LOG)
 
-    list(GET DOWNLOAD_STATUS 0 STATUS_CODE)
-    list(GET DOWNLOAD_STATUS 1 STATUS_MESSAGE)
+        list(GET DOWNLOAD_STATUS 0 STATUS_CODE)
+        list(GET DOWNLOAD_STATUS 1 STATUS_MESSAGE)
 
-    if(NOT STATUS_CODE EQUAL 0)
+        if(STATUS_CODE EQUAL 0)
+            # 检查文件大小
+            if(EXISTS "${THIRDPARTY_ZIP}")
+                file(SIZE "${THIRDPARTY_ZIP}" ZIP_SIZE)
+                message(STATUS "✓ 下载完成 (文件大小: ${ZIP_SIZE} bytes)")
+                set(DOWNLOAD_SUCCESS TRUE)
+            else()
+                message(STATUS "✗ 文件不存在，下载失败")
+                math(EXPR RETRY_COUNT "${RETRY_COUNT} + 1")
+            endif()
+        else()
+            message(STATUS "✗ 下载失败 (错误代码: ${STATUS_CODE})")
+            message(STATUS "错误信息: ${STATUS_MESSAGE}")
+            
+            # 打印网络诊断信息
+            if(WIN32)
+                message(STATUS "提示: 在 Windows CI 环境中，可能存在网络连接问题")
+            endif()
+            
+            math(EXPR RETRY_COUNT "${RETRY_COUNT} + 1")
+            if(RETRY_COUNT LESS MAX_RETRIES)
+                message(STATUS "将在 5 秒后进行第 ${RETRY_COUNT} 次重试...")
+            endif()
+        endif()
+    endwhile()
+
+    if(NOT DOWNLOAD_SUCCESS)
         file(REMOVE "${THIRDPARTY_ZIP}")
-        message(FATAL_ERROR "下载 ThirdParty.zip 失败，请检查网络连接")
+        message(FATAL_ERROR "")
+        message(FATAL_ERROR "========== 下载失败 ==========")
+        message(FATAL_ERROR "已尝试 ${MAX_RETRIES} 次，仍无法下载 ThirdParty.zip")
+        message(FATAL_ERROR "")
+        message(FATAL_ERROR "可能原因:")
+        message(FATAL_ERROR "  1. 网络连接不稳定（CI 环境网络问题）")
+        message(FATAL_ERROR "  2. GitHub Release 资源暂时不可用")
+        message(FATAL_ERROR "  3. 防火墙/代理阻止下载")
+        message(FATAL_ERROR "")
+        message(FATAL_ERROR "解决方案:")
+        message(FATAL_ERROR "  A. 手动下载并放置:")
+        message(FATAL_ERROR "     URL: ${THIRDPARTY_URL}")
+        message(FATAL_ERROR "     解压到: ${THIRDPARTY_DIR}")
+        message(FATAL_ERROR "  B. 检查网络连接")
+        message(FATAL_ERROR "  C. 使用 curl 或 wget 下载:")
+        message(FATAL_ERROR "     curl -L -o ThirdParty.zip ${THIRDPARTY_URL}")
+        message(FATAL_ERROR "=============================")
     endif()
 
-    message(STATUS "下载完成，正在解压...")
+    message(STATUS "正在解压 ThirdParty.zip...")
     file(ARCHIVE_EXTRACT INPUT "${THIRDPARTY_ZIP}"
          DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}")
 
-    message(STATUS "ThirdParty 解压完成")
-
-    file(REMOVE "${THIRDPARTY_ZIP}")
+    if(EXISTS "${THIRDPARTY_DIR}")
+        message(STATUS "✓ ThirdParty 解压完成")
+        file(REMOVE "${THIRDPARTY_ZIP}")
+    else()
+        message(FATAL_ERROR "✗ 解压失败: ${THIRDPARTY_DIR} 不存在")
+    endif()
 endfunction()
