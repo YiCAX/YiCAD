@@ -176,6 +176,11 @@ ${CMAKE_CURRENT_SOURCE_DIR}/src/plugins/*.cpp
 ${CMAKE_CURRENT_SOURCE_DIR}/src/plugins/filter/*.cpp)
 
 # #####################################################
+# =======================ai=============================
+file(GLOB AI_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/ai/*.h)
+file(GLOB AI_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/ai/*.cpp)
+
+# #####################################################
 # =======================UI============================
 file(GLOB UI_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/*.h
 ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/forms/*.h)
@@ -215,6 +220,8 @@ set (ALL_RSC_FILES ${ACTIONS_SOURCES}
                     ${MAIN_HEADERS}
                     ${PLUGINS_SOURCES} 
                     ${PLUGINS_HEADERS}
+                    ${AI_SOURCES}
+                    ${AI_HEADERS}
                     ${UI_SOURCES}
                     ${LIB_SOURCES} 
                     ${LIB_HEADERS}
@@ -284,6 +291,7 @@ src/kernel/persistence
 src/kernel/persistence/zipios++
 src/kernel/persistence/Meta
 src/main
+src/ai
 src/plugins
 src/plugins/intern
 src/ui
