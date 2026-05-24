@@ -79,6 +79,9 @@ public:
     void updateMouseCursor() override;
     void updateMouseButtonHints() override;
 
+    /// @brief 将 DM::EntityType 转为人类可读的显示名称
+    static QString entityTypeDisplayName(DM::EntityType t);
+
     /// @brief 是否可被打断：AI 拾取过程中不允许其他操作打断
     bool canBeInterrupt() override { return false; }
 

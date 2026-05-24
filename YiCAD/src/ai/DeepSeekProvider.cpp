@@ -253,18 +253,18 @@ bool DeepSeekProvider::parseErrorResponse(const QByteArray& responseData,
 
     const QJsonObject errorObj = root["error"].toObject();
     outError = errorObj["message"].toString(
-        QStringLiteral("(no message)"));
+        tr("(no message)"));
 
     // 附加 type / code 信息
     const QString type = errorObj["type"].toString();
     const QString code = errorObj["code"].toString();
     if (!type.isEmpty())
     {
-        outError += QStringLiteral(" [%1]").arg(type);
+        outError += tr(" [%1]").arg(type);
     }
     if (!code.isEmpty() && code != type)
     {
-        outError += QStringLiteral(" code=%1").arg(code);
+        outError += tr(" code=%1").arg(code);
     }
 
     return true;

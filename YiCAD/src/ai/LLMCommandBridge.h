@@ -50,6 +50,7 @@
 
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QObject>
 #include <QString>
 #include <QVector>
 
@@ -173,11 +174,12 @@ struct ParsedCommand
 /// @brief 建模链路命令桥 —— 解析、校验、兜底
 ///
 /// 无状态；一个实例可反复调用 parse()。
-class LLMCommandBridge
+class LLMCommandBridge : public QObject
 {
+    Q_OBJECT
 public:
-    LLMCommandBridge() = default;
-    ~LLMCommandBridge() = default;
+    explicit LLMCommandBridge(QObject* parent = nullptr) : QObject(parent) {}
+    ~LLMCommandBridge() override = default;
 
     /// @brief 解析 LLM 返回的原始文本为结构化命令
     /// @param llmRawResponse  LLM 返回的完整文本（可能含 Markdown 包裹的 JSON）

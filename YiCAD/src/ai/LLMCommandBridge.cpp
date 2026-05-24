@@ -163,7 +163,7 @@ ParsedCommand LLMCommandBridge::parse(const QString& llmRawResponse) const
     if (candidate.isEmpty()) {
         ParsedCommand fail;
         fail.ok           = false;
-        fail.errorMessage = QStringLiteral(
+        fail.errorMessage = tr(
             "LLMCommandBridge: unable to extract JSON from LLM response. "
             "The model may have returned text without a valid JSON block.");
         fail.rawText      = llmRawResponse;
@@ -176,7 +176,7 @@ ParsedCommand LLMCommandBridge::parse(const QString& llmRawResponse) const
     if (!tryParseJson(candidate, obj, parseError)) {
         ParsedCommand fail;
         fail.ok           = false;
-        fail.errorMessage = QStringLiteral("LLMCommandBridge: JSON parse failed — ")
+        fail.errorMessage = tr("LLMCommandBridge: JSON parse failed — ")
                             + parseError;
         fail.rawText      = llmRawResponse;
         return fail;
@@ -241,7 +241,7 @@ bool LLMCommandBridge::tryParseJson(const QString& candidate,
     }
 
     if (!doc.isObject()) {
-        errorDetail = QStringLiteral(
+        errorDetail = tr(
             "JSON root is not an object (expected {...}), got an array or scalar.");
         return false;
     }
@@ -264,7 +264,7 @@ ParsedCommand LLMCommandBridge::buildFromJson(const QJsonObject& obj,
     // ---- 3a. intent 字段 ----
     if (!obj.contains(QStringLiteral("intent"))) {
         cmd.ok           = false;
-        cmd.errorMessage = QStringLiteral(
+        cmd.errorMessage = tr(
             "LLMCommandBridge: missing required field 'intent' in command JSON.");
         return cmd;
     }
@@ -272,7 +272,7 @@ ParsedCommand LLMCommandBridge::buildFromJson(const QJsonObject& obj,
     const QJsonValue intentVal = obj.value(QStringLiteral("intent"));
     if (!intentVal.isString()) {
         cmd.ok           = false;
-        cmd.errorMessage = QStringLiteral(
+        cmd.errorMessage = tr(
             "LLMCommandBridge: field 'intent' must be a string.");
         return cmd;
     }
@@ -283,7 +283,7 @@ ParsedCommand LLMCommandBridge::buildFromJson(const QJsonObject& obj,
     if (cmd.intent == CommandIntent::Unknown) {
         // 未知 intent：仍标记 ok=true（让下游决定如何处理），但记录警告信息
         cmd.ok      = true;
-        cmd.message = QStringLiteral("Unknown intent: %1. The command may not be "
+        cmd.message = tr("Unknown intent: %1. The command may not be "
                                      "executable.").arg(intentStr);
         // 未知 intent 不做进一步校验，直接返回
         return cmd;

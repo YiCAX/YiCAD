@@ -31,28 +31,23 @@
 // 工具函数：实体类型枚举 → 可读字符串
 // ============================================================================
 
-namespace {
-
-/// @brief 将 DM::EntityType 转为人类可读的简短字符串（调试用）
-QString entityTypeToString(DM::EntityType t)
+QString AIPickAction::entityTypeDisplayName(DM::EntityType t)
 {
     switch (t) {
-    case DM::EntityPoint:       return QStringLiteral("Point");
-    case DM::EntityLine:        return QStringLiteral("Line");
-    case DM::EntityCircle:      return QStringLiteral("Circle");
-    case DM::EntityArc:         return QStringLiteral("Arc");
-    case DM::EntityEllipse:     return QStringLiteral("Ellipse");
-    case DM::EntityPolyline:    return QStringLiteral("Polyline");
-    case DM::EntityBlockReference: return QStringLiteral("BlockRef");
-    case DM::EntityText:        return QStringLiteral("Text");
-    case DM::EntityMText:       return QStringLiteral("MText");
-    case DM::EntitySpline:      return QStringLiteral("Spline");
-    case DM::EntityHatch:       return QStringLiteral("Hatch");
-    default:                    return QStringLiteral("Entity(%1)").arg(static_cast<int>(t));
+    case DM::EntityPoint:       return tr("Point");
+    case DM::EntityLine:        return tr("Line");
+    case DM::EntityCircle:      return tr("Circle");
+    case DM::EntityArc:         return tr("Arc");
+    case DM::EntityEllipse:     return tr("Ellipse");
+    case DM::EntityPolyline:    return tr("Polyline");
+    case DM::EntityBlockReference: return tr("BlockRef");
+    case DM::EntityText:        return tr("Text");
+    case DM::EntityMText:       return tr("MText");
+    case DM::EntitySpline:      return tr("Spline");
+    case DM::EntityHatch:       return tr("Hatch");
+    default:                    return tr("Entity(%1)").arg(static_cast<int>(t));
     }
 }
-
-} // anonymous namespace
 
 // ============================================================================
 // 构造 / 初始化
@@ -209,7 +204,7 @@ void AIPickAction::doPickEntity(QMouseEvent* e)
     DmEntity* entity = catchEntity(e);
     if (entity) {
         result.entityId       = entity->getId();
-        result.entityTypeName = entityTypeToString(entity->getEntityType());
+        result.entityTypeName = entityTypeDisplayName(entity->getEntityType());
         result.point          = snapPoint(e);  // 同时记录命中点
         result.success        = true;
     }

@@ -142,7 +142,7 @@ void AIPickSession::doProcessNext()
 
     // 显示进度信息
     GUIDIALOGFACTORY->commandMessage(
-        QStringLiteral("[%1/%2] %3")
+        tr("[%1/%2] %3")
             .arg(m_currentIndex + 1)
             .arg(m_queue.size())
             .arg(task.hint));

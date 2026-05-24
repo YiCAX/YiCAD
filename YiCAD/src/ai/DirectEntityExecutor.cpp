@@ -46,8 +46,9 @@
 // DirectEntityExecutor 公开接口
 // ============================================================================
 
-DirectEntityExecutor::DirectEntityExecutor(DmDocument* doc)
-    : m_doc(doc)
+DirectEntityExecutor::DirectEntityExecutor(DmDocument* doc, QObject* parent)
+    : QObject(parent)
+    , m_doc(doc)
 {
 }
 
@@ -69,7 +70,7 @@ ExecutorResult DirectEntityExecutor::execute(const ParsedCommand& cmd)
     default: {
         ExecutorResult fail;
         fail.success      = false;
-        fail.errorMessage = QStringLiteral(
+        fail.errorMessage = tr(
             "DirectEntityExecutor: unsupported intent '%1'. "
             "Only draw_point / draw_line / draw_circle / draw_rectangle / draw_ellipse "
             "are supported.").arg(intentToString(cmd.intent));
@@ -90,13 +91,13 @@ ExecutorResult DirectEntityExecutor::executeDrawPoint(const ParsedCommand& cmd)
     QString err;
     if (!extractPoint(cmd.params, QStringLiteral("position"), pos, err)) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("DirectEntityExecutor::draw_point — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_point — %1").arg(err);
         return result;
     }
 
     PointData data(pos);
     DmPoint* entity = new DmPoint(nullptr, data);
-    finalizeEntity(entity, "Create Point", QStringLiteral("DmPoint"), result);
+    finalizeEntity(entity, tr("Create Point").toStdString(), QStringLiteral("DmPoint"), result);
     return result;
 }
 
@@ -108,18 +109,18 @@ ExecutorResult DirectEntityExecutor::executeDrawLine(const ParsedCommand& cmd)
     QString err;
     if (!extractPoint(cmd.params, QStringLiteral("start"), start, err)) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("DirectEntityExecutor::draw_line — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_line — %1").arg(err);
         return result;
     }
     if (!extractPoint(cmd.params, QStringLiteral("end"), end, err)) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("DirectEntityExecutor::draw_line — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_line — %1").arg(err);
         return result;
     }
 
     LineData data(start, end);
     DmLine* entity = new DmLine(nullptr, data);
-    finalizeEntity(entity, "Create Line", QStringLiteral("DmLine"), result);
+    finalizeEntity(entity, tr("Create Line").toStdString(), QStringLiteral("DmLine"), result);
     return result;
 }
 
@@ -133,18 +134,18 @@ ExecutorResult DirectEntityExecutor::executeDrawCircle(const ParsedCommand& cmd)
 
     if (!extractPoint(cmd.params, QStringLiteral("center"), center, err)) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("DirectEntityExecutor::draw_circle — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_circle — %1").arg(err);
         return result;
     }
     if (!extractDouble(cmd.params, QStringLiteral("radius"), radius, err)) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("DirectEntityExecutor::draw_circle — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_circle — %1").arg(err);
         return result;
     }
 
     CircleData data(center, radius);
     DmCircle* entity = new DmCircle(nullptr, data);
-    finalizeEntity(entity, "Create Circle", QStringLiteral("DmCircle"), result);
+    finalizeEntity(entity, tr("Create Circle").toStdString(), QStringLiteral("DmCircle"), result);
     return result;
 }
 
@@ -156,12 +157,12 @@ ExecutorResult DirectEntityExecutor::executeDrawRectangle(const ParsedCommand& c
     QString  err;
     if (!extractPoint(cmd.params, QStringLiteral("corner1"), corner1, err)) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("DirectEntityExecutor::draw_rectangle — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_rectangle — %1").arg(err);
         return result;
     }
     if (!extractPoint(cmd.params, QStringLiteral("corner2"), corner2, err)) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("DirectEntityExecutor::draw_rectangle — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_rectangle — %1").arg(err);
         return result;
     }
 
@@ -181,7 +182,7 @@ ExecutorResult DirectEntityExecutor::executeDrawRectangle(const ParsedCommand& c
 
     PolylineData polyData(pts, bulges, weights, /*isClosed=*/true);
     DmPolyline* entity = new DmPolyline(nullptr, polyData);
-    finalizeEntity(entity, "Create Rectangle", QStringLiteral("DmPolyline"), result);
+    finalizeEntity(entity, tr("Create Rectangle").toStdString(), QStringLiteral("DmPolyline"), result);
     return result;
 }
 
@@ -197,17 +198,17 @@ ExecutorResult DirectEntityExecutor::executeDrawEllipse(const ParsedCommand& cmd
 
     if (!extractPoint(cmd.params, QStringLiteral("center"), center, err)) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("DirectEntityExecutor::draw_ellipse — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_ellipse — %1").arg(err);
         return result;
     }
     if (!extractDouble(cmd.params, QStringLiteral("major_radius"), majorRadius, err)) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("DirectEntityExecutor::draw_ellipse — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_ellipse — %1").arg(err);
         return result;
     }
     if (!extractDouble(cmd.params, QStringLiteral("minor_radius"), minorRadius, err)) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("DirectEntityExecutor::draw_ellipse — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_ellipse — %1").arg(err);
         return result;
     }
     // angle 可选，默认为 0
@@ -232,7 +233,7 @@ ExecutorResult DirectEntityExecutor::executeDrawEllipse(const ParsedCommand& cmd
                      /*endParam=*/2.0 * M_PI);
 
     DmEllipse* entity = new DmEllipse(nullptr, data);
-    finalizeEntity(entity, "Create Ellipse", QStringLiteral("DmEllipse"), result);
+    finalizeEntity(entity, tr("Create Ellipse").toStdString(), QStringLiteral("DmEllipse"), result);
     return result;
 }
 
@@ -246,30 +247,30 @@ bool DirectEntityExecutor::extractPoint(const QJsonObject& params,
                                         QString&           errorDetail)
 {
     if (!params.contains(key)) {
-        errorDetail = QStringLiteral("missing required param '%1'").arg(key);
+        errorDetail = tr("missing required param '%1'").arg(key);
         return false;
     }
 
     const QJsonValue val = params.value(key);
     if (!val.isArray()) {
-        errorDetail = QStringLiteral("param '%1' must be a JSON array [x, y]").arg(key);
+        errorDetail = tr("param '%1' must be a JSON array [x, y]").arg(key);
         return false;
     }
 
     const QJsonArray arr = val.toArray();
     if (arr.size() < 2) {
-        errorDetail = QStringLiteral("param '%1' array must have at least 2 elements (x, y)")
+        errorDetail = tr("param '%1' array must have at least 2 elements (x, y)")
                           .arg(key);
         return false;
     }
 
     // 元素应为数值类型（QJsonValue::isDouble 对整数也返回 true）
     if (!arr.at(0).isDouble()) {
-        errorDetail = QStringLiteral("param '%1'[0] (x) is not a number").arg(key);
+        errorDetail = tr("param '%1'[0] (x) is not a number").arg(key);
         return false;
     }
     if (!arr.at(1).isDouble()) {
-        errorDetail = QStringLiteral("param '%1'[1] (y) is not a number").arg(key);
+        errorDetail = tr("param '%1'[1] (y) is not a number").arg(key);
         return false;
     }
 
@@ -286,13 +287,13 @@ bool DirectEntityExecutor::extractDouble(const QJsonObject& params,
                                          QString&           errorDetail)
 {
     if (!params.contains(key)) {
-        errorDetail = QStringLiteral("missing required param '%1'").arg(key);
+        errorDetail = tr("missing required param '%1'").arg(key);
         return false;
     }
 
     const QJsonValue val = params.value(key);
     if (!val.isDouble()) {
-        errorDetail = QStringLiteral("param '%1' must be a number").arg(key);
+        errorDetail = tr("param '%1' must be a number").arg(key);
         return false;
     }
 
@@ -313,7 +314,7 @@ void DirectEntityExecutor::finalizeEntity(DmEntity*          entity,
         // 防御：构造失败或文档无效
         delete entity;
         result.success      = false;
-        result.errorMessage = QStringLiteral(
+        result.errorMessage = tr(
             "DirectEntityExecutor: internal error — null document or entity.");
         return;
     }

@@ -37,8 +37,9 @@
 // ModificationExecutor 公开接口
 // ============================================================================
 
-ModificationExecutor::ModificationExecutor(DmDocument* doc, GuiDocumentView* docView)
-    : m_doc(doc)
+ModificationExecutor::ModificationExecutor(DmDocument* doc, GuiDocumentView* docView, QObject* parent)
+    : QObject(parent)
+    , m_doc(doc)
     , m_docView(docView)
 {
 }
@@ -60,7 +61,7 @@ ModificationResult ModificationExecutor::execute(const ParsedCommand& cmd)
     default: {
         ModificationResult fail;
         fail.success      = false;
-        fail.errorMessage = QStringLiteral(
+        fail.errorMessage = tr(
             "ModificationExecutor: unsupported intent '%1'. "
             "Only delete / move / copy / offset / trim are supported.")
             .arg(intentToString(cmd.intent));
@@ -92,7 +93,7 @@ ModificationResult ModificationExecutor::executeDelete(const ParsedCommand& cmd)
     if (!cmd.needsConfirmation && cmd.selection.mode == SelectionMode::All) {
         result.success           = false;
         result.needsConfirmation = true;
-        result.errorMessage      = QStringLiteral("Delete all entities requires confirmation.");
+        result.errorMessage      = tr("Delete all entities requires confirmation.");
         return result;
     }
 
@@ -100,13 +101,13 @@ ModificationResult ModificationExecutor::executeDelete(const ParsedCommand& cmd)
     std::vector<DmEntity*> targets;
     if (!resolveEntities(cmd.selection, targets)) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("ModificationExecutor::delete — failed to resolve entities.");
+        result.errorMessage = tr("ModificationExecutor::delete — failed to resolve entities.");
         return result;
     }
 
     if (targets.empty()) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("ModificationExecutor::delete — no entities selected.");
+        result.errorMessage = tr("ModificationExecutor::delete — no entities selected.");
         return result;
     }
 
@@ -164,12 +165,12 @@ ModificationResult ModificationExecutor::executeMove(const ParsedCommand& cmd)
     QString  err;
     if (!extractPoint(cmd.params, QStringLiteral("offset"), offset, err)) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("ModificationExecutor::move — %1").arg(err);
+        result.errorMessage = tr("ModificationExecutor::move — %1").arg(err);
         return result;
     }
     if (!offset.valid) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("ModificationExecutor::move — offset is invalid.");
+        result.errorMessage = tr("ModificationExecutor::move — offset is invalid.");
         return result;
     }
 
@@ -177,12 +178,12 @@ ModificationResult ModificationExecutor::executeMove(const ParsedCommand& cmd)
     std::vector<DmEntity*> targets;
     if (!resolveEntities(cmd.selection, targets)) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("ModificationExecutor::move — failed to resolve entities.");
+        result.errorMessage = tr("ModificationExecutor::move — failed to resolve entities.");
         return result;
     }
     if (targets.empty()) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("ModificationExecutor::move — no entities selected.");
+        result.errorMessage = tr("ModificationExecutor::move — no entities selected.");
         return result;
     }
 
@@ -229,12 +230,12 @@ ModificationResult ModificationExecutor::executeCopy(const ParsedCommand& cmd)
     QString  err;
     if (!extractPoint(cmd.params, QStringLiteral("offset"), offset, err)) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("ModificationExecutor::copy — %1").arg(err);
+        result.errorMessage = tr("ModificationExecutor::copy — %1").arg(err);
         return result;
     }
     if (!offset.valid) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("ModificationExecutor::copy — offset is invalid.");
+        result.errorMessage = tr("ModificationExecutor::copy — offset is invalid.");
         return result;
     }
 
@@ -242,17 +243,17 @@ ModificationResult ModificationExecutor::executeCopy(const ParsedCommand& cmd)
     std::vector<DmEntity*> targets;
     if (!resolveEntities(cmd.selection, targets)) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("ModificationExecutor::copy — failed to resolve entities.");
+        result.errorMessage = tr("ModificationExecutor::copy — failed to resolve entities.");
         return result;
     }
     if (targets.empty()) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("ModificationExecutor::copy — no entities selected.");
+        result.errorMessage = tr("ModificationExecutor::copy — no entities selected.");
         return result;
     }
 
     // ---- 克隆 + 偏移 + 添加（通过 Transaction） ----
-    Transaction t(QObject::tr("Copy Entities").toStdString(), m_doc);
+    Transaction t(tr("Copy Entities").toStdString(), m_doc);
     t.start();
 
     EntityTable* table = m_doc->getEntityTable();
@@ -273,7 +274,7 @@ ModificationResult ModificationExecutor::executeCopy(const ParsedCommand& cmd)
     result.affectedCount = copiedCount;
     if (copiedCount == 0) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("ModificationExecutor::copy — failed to clone any entity.");
+        result.errorMessage = tr("ModificationExecutor::copy — failed to clone any entity.");
     } else {
         result.success = true;
     }
@@ -295,12 +296,12 @@ ModificationResult ModificationExecutor::executeOffset(const ParsedCommand& cmd)
     QString err;
     if (!extractDouble(cmd.params, QStringLiteral("distance"), distance, err)) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("ModificationExecutor::offset — %1").arg(err);
+        result.errorMessage = tr("ModificationExecutor::offset — %1").arg(err);
         return result;
     }
     if (distance <= 0.0) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("ModificationExecutor::offset — distance must be positive.");
+        result.errorMessage = tr("ModificationExecutor::offset — distance must be positive.");
         return result;
     }
 
@@ -312,19 +313,19 @@ ModificationResult ModificationExecutor::executeOffset(const ParsedCommand& cmd)
     std::vector<DmEntity*> targets;
     if (!resolveEntities(cmd.selection, targets)) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("ModificationExecutor::offset — failed to resolve entities.");
+        result.errorMessage = tr("ModificationExecutor::offset — failed to resolve entities.");
         return result;
     }
     if (targets.empty()) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("ModificationExecutor::offset — no entities selected.");
+        result.errorMessage = tr("ModificationExecutor::offset — no entities selected.");
         return result;
     }
 
     // ---- 自行实现：Transaction + startModify + e->offset() ----
     // 不使用 Modification::offset()，因为它内部缺少 startModify() 导致 Undo 失效
     EntityTable* table = m_doc->getEntityTable();
-    Transaction t(QObject::tr("Offset Entities").toStdString(), m_doc);
+    Transaction t(tr("Offset Entities").toStdString(), m_doc);
     t.start();
 
     int offsetCount = 0;
@@ -354,7 +355,7 @@ ModificationResult ModificationExecutor::executeOffset(const ParsedCommand& cmd)
     result.affectedCount = offsetCount;
     if (offsetCount == 0) {
         result.success      = false;
-        result.errorMessage = QStringLiteral(
+        result.errorMessage = tr(
             "ModificationExecutor::offset — no entity could be offset. "
             "Entity type may not support offset.");
     } else {
@@ -377,12 +378,12 @@ ModificationResult ModificationExecutor::executeTrim(const ParsedCommand& cmd)
     std::vector<DmEntity*> targets;
     if (!resolveEntities(cmd.selection, targets)) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("ModificationExecutor::trim — failed to resolve entities.");
+        result.errorMessage = tr("ModificationExecutor::trim — failed to resolve entities.");
         return result;
     }
     if (targets.size() < 2) {
         result.success      = false;
-        result.errorMessage = QStringLiteral(
+        result.errorMessage = tr(
             "ModificationExecutor::trim — at least 2 entities required "
             "(cutting edge + entity to trim).");
         return result;
@@ -393,7 +394,7 @@ ModificationResult ModificationExecutor::executeTrim(const ParsedCommand& cmd)
     QString  err;
     if (!extractPoint(cmd.params, QStringLiteral("mouse_point"), mousePt, err)) {
         result.success      = false;
-        result.errorMessage = QStringLiteral("ModificationExecutor::trim — %1").arg(err);
+        result.errorMessage = tr("ModificationExecutor::trim — %1").arg(err);
         return result;
     }
 
@@ -426,7 +427,7 @@ ModificationResult ModificationExecutor::executeTrim(const ParsedCommand& cmd)
     result.affectedCount = trimmedCount;
     if (trimmedCount == 0) {
         result.success      = false;
-        result.errorMessage = QStringLiteral(
+        result.errorMessage = tr(
             "ModificationExecutor::trim — no entities could be trimmed. "
             "Ensure mouse_point is on the side to keep and entities intersect.");
     } else {
@@ -525,28 +526,28 @@ bool ModificationExecutor::extractPoint(const QJsonObject& params,
                                         QString&           errorDetail)
 {
     if (!params.contains(key)) {
-        errorDetail = QStringLiteral("missing required param '%1'").arg(key);
+        errorDetail = tr("missing required param '%1'").arg(key);
         return false;
     }
 
     const QJsonValue val = params.value(key);
     if (!val.isArray()) {
-        errorDetail = QStringLiteral("param '%1' must be a JSON array [x, y]").arg(key);
+        errorDetail = tr("param '%1' must be a JSON array [x, y]").arg(key);
         return false;
     }
 
     const QJsonArray arr = val.toArray();
     if (arr.size() < 2) {
-        errorDetail = QStringLiteral("param '%1' array must have at least 2 elements (x, y)").arg(key);
+        errorDetail = tr("param '%1' array must have at least 2 elements (x, y)").arg(key);
         return false;
     }
 
     if (!arr.at(0).isDouble()) {
-        errorDetail = QStringLiteral("param '%1'[0] (x) is not a number").arg(key);
+        errorDetail = tr("param '%1'[0] (x) is not a number").arg(key);
         return false;
     }
     if (!arr.at(1).isDouble()) {
-        errorDetail = QStringLiteral("param '%1'[1] (y) is not a number").arg(key);
+        errorDetail = tr("param '%1'[1] (y) is not a number").arg(key);
         return false;
     }
 
@@ -563,13 +564,13 @@ bool ModificationExecutor::extractDouble(const QJsonObject& params,
                                          QString&           errorDetail)
 {
     if (!params.contains(key)) {
-        errorDetail = QStringLiteral("missing required param '%1'").arg(key);
+        errorDetail = tr("missing required param '%1'").arg(key);
         return false;
     }
 
     const QJsonValue val = params.value(key);
     if (!val.isDouble()) {
-        errorDetail = QStringLiteral("param '%1' must be a number").arg(key);
+        errorDetail = tr("param '%1' must be a number").arg(key);
         return false;
     }
 

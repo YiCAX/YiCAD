@@ -68,6 +68,8 @@
 
 #include "LLMCommandBridge.h"  // SelectionSpec, SelectionMode, CommandIntent
 
+#include <QJsonObject>
+#include <QObject>
 #include <QString>
 #include <QVector>
 #include "DmId.h"
@@ -136,12 +138,14 @@ struct TurnRecord
 ///   2. 每轮调用 resolve(spec) 解析实体引用
 ///   3. 执行完成后调用 recordTurn() 记录本轮结果
 ///   4. 用户"新建"或"重置对话"时调用 clearHistory()
-class ContextResolver
+class ContextResolver : public QObject
 {
+    Q_OBJECT
 public:
     /// @brief 构造函数
     /// @param doc 目标文档（非空，用于查询 EntityTable）
-    explicit ContextResolver(DmDocument* doc);
+    /// @param parent 父 QObject（可选）
+    explicit ContextResolver(DmDocument* doc, QObject* parent = nullptr);
 
     ~ContextResolver() = default;
 

@@ -105,6 +105,7 @@ void AIDialog::setupUI()
     m_pBtnSend = new QPushButton(tr("Send"), this);
     m_pBtnSend->setDefault(true);            // 回车键触发
     m_pBtnSend->setMinimumWidth(70);
+    m_pBtnSend->setMaximumHeight(80);        // 与输入框高度一致
 
     pInputRow->addWidget(m_pInputEdit, 1);
     pInputRow->addWidget(m_pBtnSend);

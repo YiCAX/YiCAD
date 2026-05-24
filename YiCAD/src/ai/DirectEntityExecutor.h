@@ -38,6 +38,8 @@
 
 #include "LLMCommandBridge.h"
 
+#include <QJsonObject>
+#include <QObject>
 #include <QString>
 #include <QVector>
 #include "DmVector.h"
@@ -75,12 +77,14 @@ struct ExecutorResult
 /// @brief 直接绘图执行器
 ///
 /// 无状态；构造时传入 DmDocument*，后续反复调用 execute()。
-class DirectEntityExecutor
+class DirectEntityExecutor : public QObject
 {
+    Q_OBJECT
 public:
     /// @brief 构造函数
     /// @param doc 目标文档（非空）
-    explicit DirectEntityExecutor(DmDocument* doc);
+    /// @param parent 父 QObject（可选）
+    explicit DirectEntityExecutor(DmDocument* doc, QObject* parent = nullptr);
 
     ~DirectEntityExecutor() = default;
 

@@ -91,7 +91,7 @@ const char* mapEntityTypeDisplayName(int dmType)
 
 QString ResolvedEntityRef::describe() const
 {
-    return QStringLiteral("[%1] %2 (resolved via %3)")
+    return QObject::tr("[%1] %2 (resolved via %3)")
         .arg(entityId.isValid()
                  ? QString::fromStdString(entityId.asString())
                  : QStringLiteral("invalid"))
@@ -116,8 +116,9 @@ QVector<DmId> ResolvedSelection::entityIds() const
 // ContextResolver 构造 & 历史管理
 // ============================================================================
 
-ContextResolver::ContextResolver(DmDocument* doc)
-    : m_doc(doc)
+ContextResolver::ContextResolver(DmDocument* doc, QObject* parent)
+    : QObject(parent)
+    , m_doc(doc)
 {
 }
 
@@ -160,14 +161,14 @@ ResolvedSelection ContextResolver::resolve(const SelectionSpec& spec) const
     case SelectionMode::None: {
         ResolvedSelection result;
         result.ok          = true;
-        result.explanation = QStringLiteral("No selection required (None mode).");
+        result.explanation = tr("No selection required (None mode).");
         return result;
     }
 
     case SelectionMode::PickRequired: {
         ResolvedSelection result;
         result.ok           = false;
-        result.errorMessage = QStringLiteral(
+        result.errorMessage = tr(
             "ContextResolver: PickRequired mode — entity must be picked by user. "
             "Use AIPickSession to resolve.");
         result.explanation  = result.errorMessage;
@@ -178,7 +179,7 @@ ResolvedSelection ContextResolver::resolve(const SelectionSpec& spec) const
     // unreachable, but keep compiler happy
     ResolvedSelection fail;
     fail.ok           = false;
-    fail.errorMessage = QStringLiteral("ContextResolver: unknown SelectionMode.");
+    fail.errorMessage = tr("ContextResolver: unknown SelectionMode.");
     return fail;
 }
 
@@ -204,11 +205,11 @@ ResolvedSelection ContextResolver::resolveCurrentSelection(
 
         const QString typeName = entityTypeName(typeHint);
         if (typeHint != DM::EntityUnknown) {
-            result.errorMessage = QStringLiteral(
+            result.errorMessage = tr(
                 "ContextResolver: no selected entities matching type hint '%1'.")
                 .arg(typeName);
         } else {
-            result.errorMessage = QStringLiteral(
+            result.errorMessage = tr(
                 "ContextResolver: no entities currently selected.");
         }
         return result;
@@ -218,12 +219,12 @@ ResolvedSelection ContextResolver::resolveCurrentSelection(
     result.entities = entities;
 
     if (typeHint != DM::EntityUnknown) {
-        result.explanation = QStringLiteral(
+        result.explanation = tr(
             "Resolved %1 entity/entities from current selection (filtered by type: %2).")
             .arg(entities.size())
             .arg(entityTypeName(typeHint));
     } else {
-        result.explanation = QStringLiteral(
+        result.explanation = tr(
             "Resolved %1 entity/entities from current selection.")
             .arg(entities.size());
     }
@@ -278,9 +279,9 @@ ResolvedSelection ContextResolver::resolveLastCreated(
             result.entities = entities;
 
             const QString typeInfo = (typeHint != DM::EntityUnknown)
-                ? QStringLiteral(" (filtered by type: %1)").arg(entityTypeName(typeHint))
+                ? tr(" (filtered by type: %1)").arg(entityTypeName(typeHint))
                 : QString();
-            result.explanation = QStringLiteral(
+            result.explanation = tr(
                 "Resolved %1 entity/entities from previous turn (user said: \"%2\")%3.")
                 .arg(entities.size())
                 .arg(lastTurn.userInput, typeInfo);
@@ -321,7 +322,7 @@ ResolvedSelection ContextResolver::resolveLastCreated(
         if (!entities.isEmpty()) {
             result.ok       = true;
             result.entities = entities;
-            result.explanation = QStringLiteral(
+            result.explanation = tr(
                 "Resolved 1 entity as last created (fallback: no history available).");
             return result;
         }
@@ -332,7 +333,7 @@ ResolvedSelection ContextResolver::resolveLastCreated(
 
     const QString typeName = (typeHint != DM::EntityUnknown)
         ? entityTypeName(typeHint) : QStringLiteral("any");
-    result.errorMessage = QStringLiteral(
+    result.errorMessage = tr(
         "ContextResolver: no last-created entity found (type hint: %1). "
         "Create an entity first, then reference it in the next turn.")
         .arg(typeName);
@@ -356,14 +357,14 @@ ResolvedSelection ContextResolver::resolveAll(const QJsonObject& raw) const
 
     if (entities.isEmpty()) {
         result.ok           = false;
-        result.errorMessage = QStringLiteral(
+        result.errorMessage = tr(
             "ContextResolver: no visible entities in document.");
         return result;
     }
 
     result.ok       = true;
     result.entities = entities;
-    result.explanation = QStringLiteral(
+    result.explanation = tr(
         "Resolved %1 entity/entities (all visible).")
         .arg(entities.size());
     return result;

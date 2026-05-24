@@ -46,6 +46,8 @@
 
 #include "LLMCommandBridge.h"
 
+#include <QJsonObject>
+#include <QObject>
 #include <QString>
 #include <QVector>
 #include "DmVector.h"
@@ -86,13 +88,15 @@ struct ModificationResult
 /// @brief 修改命令执行器
 ///
 /// 无状态；构造时传入 DmDocument* 和 GuiDocumentView*，后续反复调用 execute()。
-class ModificationExecutor
+class ModificationExecutor : public QObject
 {
+    Q_OBJECT
 public:
     /// @brief 构造函数
     /// @param doc     目标文档（非空）
     /// @param docView 文档视图（非空，用于 UI 刷新）
-    explicit ModificationExecutor(DmDocument* doc, GuiDocumentView* docView);
+    /// @param parent  父 QObject（可选）
+    explicit ModificationExecutor(DmDocument* doc, GuiDocumentView* docView, QObject* parent = nullptr);
 
     ~ModificationExecutor() = default;
 
