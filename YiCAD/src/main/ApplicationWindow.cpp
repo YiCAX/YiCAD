@@ -75,9 +75,7 @@
 #include "UIBlockSaveAs.h"
 #include "UIDialogFactory.h"
 #include "UICurrentActivePen.h"
-#include "AIDialog.h"
-#include "AIPipeline.h"
-#include "LLMSettingsPage.h"
+#include "AIAssistant.h"
 
 #include "ActionLayersActivate.h"
 #include "ActionLayersFreeze.h"
@@ -262,68 +260,22 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
 	if (rightGroup)
 	{
 		m_pActAI = createAction(QObject::tr("AI Assistant"), ":/ribbon/tabbar/ai.svg", "ai-assistant");
-		connect(m_pActAI, &QAction::triggered, this, &ApplicationWindow::slotShowAIDialog);
+		m_pAIAssistant = new AIAssistant(this, this);
+		connect(m_pActAI, &QAction::triggered, this, [this]() {
+			DmDocument* doc = nullptr;
+			GuiDocumentView* docView = nullptr;
+			if (m_pCurrentMdiWin)
+			{
+				doc = m_pCurrentMdiWin->getDocument();
+				docView = m_pCurrentMdiWin->getDocumentView();
+			}
+			m_pAIAssistant->show(doc, docView);
+		});
 		rightGroup->addAction(m_pActAI);
 	}
 	loadPlugins();
 }
 
-/// @brief 打开 AI 助手对话框（modeless）
-void ApplicationWindow::slotShowAIDialog()
-{
-	if (!m_pAIDialog)
-	{
-		m_pAIDialog = new AIDialog(this);
-
-		// ---- 获取当前文档和视图（用于建模执行器） ----
-		DmDocument* doc = nullptr;
-		GuiDocumentView* docView = nullptr;
-		if (m_pCurrentMdiWin)
-		{
-			doc = m_pCurrentMdiWin->getDocument();
-			docView = m_pCurrentMdiWin->getDocumentView();
-		}
-
-		// ---- AI 资源路径（通过 CMake file(COPY) 安装到 exe 同目录） ----
-		const QString appDir = DMSYSTEM->getAppDir();
-		const QString docsDir = appDir + "/ai";
-		const QString readmePath = appDir + "/ai/README.md";
-		const QString keywordsPath = appDir + "/ai/intent_keywords.json";
-
-		// ---- 创建 AI 总调度器（持有 Router / RAG / Bridge / Executors） ----
-
-		m_pAIPipeline = new AIPipeline(docsDir, readmePath, keywordsPath,
-		                               doc, docView, this);
-
-		// ---- 连接：用户发送 → AIPipeline 调度 ----
-		connect(m_pAIDialog, &AIDialog::sendRequested,
-		        m_pAIPipeline, [this](const QString& text, const QString& /*mode*/) {
-		            const int idx = m_pAIDialog->modeIndex();
-		            const QString token = (idx == 0) ? QStringLiteral("qa")
-		                                : (idx == 1) ? QStringLiteral("modeling")
-		                                : QStringLiteral("auto");
-		            m_pAIPipeline->handleUserInput(text, token);
-		        });
-
-		// ---- 连接：AIPipeline 回复 → 对话区显示 ----
-		connect(m_pAIPipeline, &AIPipeline::responseReady,
-		        m_pAIDialog, &AIDialog::appendMessage);
-
-		// ---- 连接：AIPipeline 错误 → 对话区显示 ----
-		connect(m_pAIPipeline, &AIPipeline::errorOccurred,
-		        m_pAIDialog, &AIDialog::appendMessage);
-
-		// ---- 连接：Config 按钮 → 打开 LLM 配置对话框 ----
-		connect(m_pAIDialog, &AIDialog::configRequested,
-		        this, [this]() {
-		            LLMSettingsPage dlg(m_pAIDialog);
-		            dlg.exec();
-		        });
-	}
-	m_pAIDialog->show();
-	m_pAIDialog->raise();
-	m_pAIDialog->activateWindow();
-}
 
 void ApplicationWindow::onStyleClicked(int id)
 {
