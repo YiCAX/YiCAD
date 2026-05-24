@@ -9588,4 +9588,77 @@ Continue?</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
+<context>
+    <name>AIIntentRouter</name>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="294"/>
+        <source>Input is empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="295"/>
+        <source>Please enter your question or modeling command.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="307"/>
+        <source>Manually set to QA mode.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="308"/>
+        <source>Will enter QA pipeline (RAG).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="318"/>
+        <source>Manually set to Modeling mode.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="319"/>
+        <source>Will enter modeling execution pipeline.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="413"/>
+        <source>No matching QA or modeling keywords found; unable to determine intent (QA_score=%1, Modeling_score=%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="416"/>
+        <source>Please provide more details: are you looking for information about a feature, or do you want to perform a modeling operation?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="429"/>
+        <source>Both QA and modeling keywords matched; classified as mixed intent (QA_score=%1, Modeling_score=%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="432"/>
+        <source>Provide instructions first, then ask whether to execute the modeling operation.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="445"/>
+        <source>QA keywords matched; classified as QA intent (QA_score=%1, Modeling_score=%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="460"/>
+        <source>Modeling keywords matched; classified as modeling intent (QA_score=%1, Modeling_score=%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="475"/>
+        <source>QA score is higher (QA=%1 &gt; Modeling=%2); classified as QA.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="485"/>
+        <source>Modeling score is higher (Modeling=%1 &gt; QA=%2); classified as modeling.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
 </TS>

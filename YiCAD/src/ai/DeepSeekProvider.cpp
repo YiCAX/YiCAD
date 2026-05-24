@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (C) 2026 YiCAD Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,14 +54,14 @@ void DeepSeekProvider::sendMessage(const QString& userMessage)
     LLMSettingsService* svc = LLMSettingsService::instance();
     if (!svc || !svc->isInitialized())
     {
-        emit errorOccurred(tr("LLM 配置服务未初始化。"));
+        emit errorOccurred(tr("LLM configuration service is not initialized."));
         return;
     }
 
     // ---- 2. 校验 API Key ----
     if (!svc->hasApiKey())
     {
-        emit errorOccurred(tr("未配置 API Key，请在 AI 配置中设置。"));
+        emit errorOccurred(tr("API Key not configured. Please set it in AI settings."));
         return;
     }
 
@@ -125,23 +125,23 @@ void DeepSeekProvider::onReplyFinished(QNetworkReply* reply)
             QString deepseekError;
             if (parseErrorResponse(body, deepseekError))
             {
-                emit errorOccurred(tr("DeepSeek API 错误 (HTTP %1): %2")
-                                   .arg(statusCode)
-                                   .arg(deepseekError));
+                emit errorOccurred(tr("DeepSeek API error (HTTP %1): %2")
+                                    .arg(statusCode)
+                                    .arg(deepseekError));
             }
             else
             {
                 // 返回非 JSON 错误（如 HTML 页面）
                 QString preview = QString::fromUtf8(body.left(300));
                 emit errorOccurred(tr("HTTP %1: %2")
-                                   .arg(statusCode)
-                                   .arg(preview.isEmpty() ? errorStr : preview));
+                                    .arg(statusCode)
+                                    .arg(preview.isEmpty() ? errorStr : preview));
             }
         }
         else
         {
             // 纯网络错误：无法连接、超时、DNS 等
-            emit errorOccurred(tr("网络请求失败: %1").arg(errorStr));
+            emit errorOccurred(tr("Network request failed: %1").arg(errorStr));
         }
         reply->deleteLater();
         return;
@@ -150,7 +150,7 @@ void DeepSeekProvider::onReplyFinished(QNetworkReply* reply)
     // ---- 情况 2：HTTP 200，解析正常响应 ----
     if (statusCode != 200)
     {
-        emit errorOccurred(tr("未知状态码 %1").arg(statusCode));
+        emit errorOccurred(tr("Unknown status code %1").arg(statusCode));
         reply->deleteLater();
         return;
     }
@@ -162,7 +162,7 @@ void DeepSeekProvider::onReplyFinished(QNetworkReply* reply)
     }
     else
     {
-        emit errorOccurred(tr("返回格式异常: 无法解析 AI 回复内容。"));
+        emit errorOccurred(tr("Invalid response format: unable to parse AI reply content."));
     }
 
     reply->deleteLater();

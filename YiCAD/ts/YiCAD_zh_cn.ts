@@ -7918,4 +7918,77 @@ p, li { white-space: pre-wrap; }
         <translation>角度：</translation>
     </message>
 </context>
+<context>
+    <name>AIIntentRouter</name>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="294"/>
+        <source>Input is empty.</source>
+        <translation>输入为空</translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="295"/>
+        <source>Please enter your question or modeling command.</source>
+        <translation>请输入您的问题或建模指令</translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="307"/>
+        <source>Manually set to QA mode.</source>
+        <translation>手动指定为问答模式</translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="308"/>
+        <source>Will enter QA pipeline (RAG).</source>
+        <translation>将进入问答链路（RAG）</translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="318"/>
+        <source>Manually set to Modeling mode.</source>
+        <translation>手动指定为建模模式</translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="319"/>
+        <source>Will enter modeling execution pipeline.</source>
+        <translation>将进入建模执行链路</translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="413"/>
+        <source>No matching QA or modeling keywords found; unable to determine intent (QA_score=%1, Modeling_score=%2)</source>
+        <translation>未匹配到明确的问答或建模关键词，无法确定意图 (QA得分=%1, 建模得分=%2)</translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="416"/>
+        <source>Please provide more details: are you looking for information about a feature, or do you want to perform a modeling operation?</source>
+        <translation>请补充更多信息：您是想了解某个功能，还是执行建模操作？</translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="429"/>
+        <source>Both QA and modeling keywords matched; classified as mixed intent (QA_score=%1, Modeling_score=%2)</source>
+        <translation>同时匹配到问答关键词和建模关键词，判定为混合意图 (QA得分=%1, 建模得分=%2)</translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="432"/>
+        <source>Provide instructions first, then ask whether to execute the modeling operation.</source>
+        <translation>先提供操作说明，然后询问是否需要直接执行建模操作</translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="445"/>
+        <source>QA keywords matched; classified as QA intent (QA_score=%1, Modeling_score=%2)</source>
+        <translation>匹配到问答关键词，判定为问答意图 (QA得分=%1, 建模得分=%2)</translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="460"/>
+        <source>Modeling keywords matched; classified as modeling intent (QA_score=%1, Modeling_score=%2)</source>
+        <translation>匹配到建模关键词，判定为建模意图 (QA得分=%1, 建模得分=%2)</translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="475"/>
+        <source>QA score is higher (QA=%1 &gt; Modeling=%2); classified as QA.</source>
+        <translation>问答倾向得分更高 (QA=%1 > 建模=%2)，判定为问答意图</translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIIntentRouter.cpp" line="485"/>
+        <source>Modeling score is higher (Modeling=%1 &gt; QA=%2); classified as modeling.</source>
+        <translation>建模倾向得分更高 (建模=%1 > QA=%2)，判定为建模意图</translation>
+    </message>
+</context>
 </TS>
