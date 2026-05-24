@@ -76,7 +76,7 @@
 #include "UIDialogFactory.h"
 #include "UICurrentActivePen.h"
 #include "AIDialog.h"
-#include "DeepSeekProvider.h"
+#include "AIPipeline.h"
 #include "LLMSettingsPage.h"
 
 #include "ActionLayersActivate.h"
@@ -275,26 +275,43 @@ void ApplicationWindow::slotShowAIDialog()
 	{
 		m_pAIDialog = new AIDialog(this);
 
-		// ---- 创建 DeepSeekProvider（只创建一次） ----
-		m_pAIProvider = new DeepSeekProvider(this);
+		// ---- 获取当前文档和视图（用于建模执行器） ----
+		DmDocument* doc = nullptr;
+		GuiDocumentView* docView = nullptr;
+		if (m_pCurrentMdiWin)
+		{
+			doc = m_pCurrentMdiWin->getDocument();
+			docView = m_pCurrentMdiWin->getDocumentView();
+		}
 
-		// ---- 连接：用户发送 → Provider 请求 ----
+		// ---- AI 资源路径（通过 CMake file(COPY) 安装到 exe 同目录） ----
+		const QString appDir = DMSYSTEM->getAppDir();
+		const QString docsDir = appDir + "/ai";
+		const QString readmePath = appDir + "/ai/README.md";
+		const QString keywordsPath = appDir + "/ai/intent_keywords.json";
+
+		// ---- 创建 AI 总调度器（持有 Router / RAG / Bridge / Executors） ----
+
+		m_pAIPipeline = new AIPipeline(docsDir, readmePath, keywordsPath,
+		                               doc, docView, this);
+
+		// ---- 连接：用户发送 → AIPipeline 调度 ----
 		connect(m_pAIDialog, &AIDialog::sendRequested,
-		        m_pAIProvider, [this](const QString& text, const QString& /*mode*/) {
-		            m_pAIProvider->sendMessage(text);
+		        m_pAIPipeline, [this](const QString& text, const QString& /*mode*/) {
+		            const int idx = m_pAIDialog->modeIndex();
+		            const QString token = (idx == 0) ? QStringLiteral("qa")
+		                                : (idx == 1) ? QStringLiteral("modeling")
+		                                : QStringLiteral("auto");
+		            m_pAIPipeline->handleUserInput(text, token);
 		        });
 
-		// ---- 连接：Provider 成功响应 → 对话区显示 ----
-		connect(m_pAIProvider, &DeepSeekProvider::responseReceived,
-		        m_pAIDialog, [this](const QString& responseText) {
-		            m_pAIDialog->appendMessage(tr("AI"), responseText);
-		        });
+		// ---- 连接：AIPipeline 回复 → 对话区显示 ----
+		connect(m_pAIPipeline, &AIPipeline::responseReady,
+		        m_pAIDialog, &AIDialog::appendMessage);
 
-		// ---- 连接：Provider 错误 → 对话区显示红色 ----
-		connect(m_pAIProvider, &DeepSeekProvider::errorOccurred,
-		        m_pAIDialog, [this](const QString& errorText) {
-		            m_pAIDialog->appendMessage(tr("Error"), errorText);
-		        });
+		// ---- 连接：AIPipeline 错误 → 对话区显示 ----
+		connect(m_pAIPipeline, &AIPipeline::errorOccurred,
+		        m_pAIDialog, &AIDialog::appendMessage);
 
 		// ---- 连接：Config 按钮 → 打开 LLM 配置对话框 ----
 		connect(m_pAIDialog, &AIDialog::configRequested,

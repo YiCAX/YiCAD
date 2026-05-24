@@ -44,6 +44,10 @@ public:
     /// @return 模式文本："问答" / "建模" / "自动"
     QString currentMode() const;
 
+    /// @brief 获取当前模式索引
+    /// @return 0=问答, 1=建模, 2=自动
+    int modeIndex() const;
+
     /// @brief 设置模式
     /// @param [in] mode 模式索引：0=问答, 1=建模, 2=自动
     void setMode(int mode);

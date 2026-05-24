@@ -44,6 +44,11 @@ QString AIDialog::currentMode() const
     return m_pModeCombo->currentText();
 }
 
+int AIDialog::modeIndex() const
+{
+    return m_pModeCombo ? m_pModeCombo->currentIndex() : 2;
+}
+
 void AIDialog::setMode(int mode)
 {
     if (mode >= 0 && mode < m_pModeCombo->count())
@@ -198,45 +203,29 @@ void AIDialog::slotExecuteClicked()
     }
 
     // 在对话区显示执行提示
-    appendMessage(tr("System"), tr("[Execute] %1").arg(text));
+    appendMessage(tr("System"), tr("Executing: %1").arg(text));
 
-    // 清空输入框
-    m_pInputEdit->clear();
-    m_pInputEdit->setFocus();
-
-    // 发射执行信号
+    // 发射信号
     emit executeRequested(text);
 }
 
 void AIDialog::slotCancelClicked()
 {
-    // 清空当前输入
-    m_pInputEdit->clear();
-
-    // 在对话区显示取消提示
-    appendMessage(tr("System"), tr("Operation cancelled."));
-
     emit cancelRequested();
 }
 
 void AIDialog::slotConfigClicked()
 {
-    // 发射信号，外部（ApplicationWindow）连接打开 LLMSettingsPage
     emit configRequested();
 }
 
 void AIDialog::slotHistoryClicked()
 {
-    // 占位：后续打开历史记录面板
-    appendMessage(tr("System"), tr("[History] History panel will be implemented in a future step."));
     emit historyRequested();
 }
 
 void AIDialog::slotModeChanged(int index)
 {
     Q_UNUSED(index);
-    // 占位：后续可根据模式切换显示不同的 UI 提示
-    QString mode = currentMode();
-    m_pInputEdit->setPlaceholderText(
-        tr("Mode [%1] - Enter your question or modeling command...").arg(mode));
+    // 占位：后续可用于 UI 状态切换
 }

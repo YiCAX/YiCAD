@@ -56,7 +56,7 @@ class UICommandWidget;
 class UIBlockListWidget;
 class UIBlockSaveAs;
 class AIDialog;
-class DeepSeekProvider;
+class AIPipeline;
 struct SingleTabDraw;
 
 /// @brief 应用程序主窗口，继承自SARibbonMainWindow，管理Ribbon菜单、MDI绘图区域、图层面板和插件
@@ -323,7 +323,7 @@ private:
     // AI 助手
     QAction*                        m_pActAI = nullptr;                 ///< AI助手按钮Action
     AIDialog*                       m_pAIDialog = nullptr;             ///< AI助手对话框
-    DeepSeekProvider*               m_pAIProvider = nullptr;           ///< AI Provider
+    AIPipeline*                     m_pAIPipeline = nullptr;           ///< AI 总调度器
 };
 
 #endif  // APPLICATIONWINDOW_H
