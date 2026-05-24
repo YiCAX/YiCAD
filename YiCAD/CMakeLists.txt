@@ -4,7 +4,7 @@ cmake_minimum_required (VERSION 3.10)
 PROJECT (YiCAD)
 
 # 加载Qt模块
-set(YICAD_USE_QT_MODULES Widgets Gui  Core  PrintSupport Designer Svg)
+set(YICAD_USE_QT_MODULES Widgets Gui  Core  PrintSupport Designer Svg Network)
 
 foreach(qtmod ${YICAD_USE_QT_MODULES})
     find_package(Qt5${qtmod} REQUIRED)
@@ -301,6 +301,11 @@ src/ui/forms)
 # 添加预处理器定义值
 Add_Definitions(-D_USE_MATH_DEFINES -D_ENABLE_EXTENDED_ALIGNED_STORAGE -DAPPDIR="YiCAD" -DVERSION="0.5.0.0-alpha")
 remove_definitions(-D_HAS_STD_BYTE)
+
+# MSVC: 强制源文件和执行字符集为 UTF-8，避免中文乱码
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
 #add_compile_definitions(/FI${mimalloc_INCLUDE_DIR}/mimalloc-override.h)
 add_link_options(/INCLUDE:mi_version)
 

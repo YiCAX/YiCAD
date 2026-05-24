@@ -76,6 +76,8 @@
 #include "UIDialogFactory.h"
 #include "UICurrentActivePen.h"
 #include "AIDialog.h"
+#include "DeepSeekProvider.h"
+#include "LLMSettingsPage.h"
 
 #include "ActionLayersActivate.h"
 #include "ActionLayersFreeze.h"
@@ -272,6 +274,34 @@ void ApplicationWindow::slotShowAIDialog()
 	if (!m_pAIDialog)
 	{
 		m_pAIDialog = new AIDialog(this);
+
+		// ---- 创建 DeepSeekProvider（只创建一次） ----
+		m_pAIProvider = new DeepSeekProvider(this);
+
+		// ---- 连接：用户发送 → Provider 请求 ----
+		connect(m_pAIDialog, &AIDialog::sendRequested,
+		        m_pAIProvider, [this](const QString& text, const QString& /*mode*/) {
+		            m_pAIProvider->sendMessage(text);
+		        });
+
+		// ---- 连接：Provider 成功响应 → 对话区显示 ----
+		connect(m_pAIProvider, &DeepSeekProvider::responseReceived,
+		        m_pAIDialog, [this](const QString& responseText) {
+		            m_pAIDialog->appendMessage(tr("AI"), responseText);
+		        });
+
+		// ---- 连接：Provider 错误 → 对话区显示红色 ----
+		connect(m_pAIProvider, &DeepSeekProvider::errorOccurred,
+		        m_pAIDialog, [this](const QString& errorText) {
+		            m_pAIDialog->appendMessage(tr("Error"), errorText);
+		        });
+
+		// ---- 连接：Config 按钮 → 打开 LLM 配置对话框 ----
+		connect(m_pAIDialog, &AIDialog::configRequested,
+		        this, [this]() {
+		            LLMSettingsPage dlg(m_pAIDialog);
+		            dlg.exec();
+		        });
 	}
 	m_pAIDialog->show();
 	m_pAIDialog->raise();

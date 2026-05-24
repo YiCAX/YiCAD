@@ -221,8 +221,7 @@ void AIDialog::slotCancelClicked()
 
 void AIDialog::slotConfigClicked()
 {
-    // 占位：后续打开 LLM 配置对话框
-    appendMessage(tr("System"), tr("[Config] Configuration dialog will be implemented in a future step."));
+    // 发射信号，外部（ApplicationWindow）连接打开 LLMSettingsPage
     emit configRequested();
 }
 

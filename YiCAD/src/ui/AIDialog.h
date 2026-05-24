@@ -48,6 +48,11 @@ public:
     /// @param [in] mode 模式索引：0=问答, 1=建模, 2=自动
     void setMode(int mode);
 
+    /// @brief 向对话显示区追加一条消息（对外公开，供 DeepSeekProvider 等回写）
+    /// @param [in] sender 发送者标识（如 "AI", "System"）
+    /// @param [in] message 消息内容
+    void appendMessage(const QString& sender, const QString& message);
+
 signals:
     /// @brief 用户点击发送按钮，携带输入文本和当前模式
     /// @param [in] text 用户输入的文本
@@ -99,10 +104,6 @@ private:
     /// @brief 初始化信号连接（内部占位）
     void setupConnections();
 
-    /// @brief 向对话显示区追加一条消息
-    /// @param [in] sender 发送者标识
-    /// @param [in] message 消息内容
-    void appendMessage(const QString& sender, const QString& message);
 
 private:
     QLabel*         m_pModeLabel = nullptr;         ///< 模式标签

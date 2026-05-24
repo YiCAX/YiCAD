@@ -39,7 +39,7 @@ LLMSettingsPage::LLMSettingsPage(QWidget* parent)
     , m_temperatureSpin(nullptr)
     , m_apiKeyEdit(nullptr)
 {
-    setWindowTitle(tr("LLM 配置"));
+    setWindowTitle(tr("LLM Settings"));
     setMinimumWidth(480);
 
     setupUi();
@@ -59,8 +59,8 @@ void LLMSettingsPage::setupUi()
     auto* mainLayout = new QVBoxLayout(this);
 
     // ---- 顶部说明 ----
-    auto* headerLabel = new QLabel(tr("配置 AI 大语言模型连接参数。\n"
-                                      "不填 API Key 则 AI 功能不可用。"));
+    auto* headerLabel = new QLabel(tr("Configure AI language model connection parameters.\n"
+                                      "AI features are unavailable without an API Key."));
     headerLabel->setWordWrap(true);
     mainLayout->addWidget(headerLabel);
 
@@ -81,28 +81,28 @@ void LLMSettingsPage::setupUi()
 
     m_timeoutSpin = new QSpinBox(this);
     m_timeoutSpin->setRange(5, 600);
-    m_timeoutSpin->setSuffix(tr(" 秒"));
-    m_timeoutSpin->setToolTip(tr("请求超时时间（秒）"));
+    m_timeoutSpin->setSuffix(tr(" sec"));
+    m_timeoutSpin->setToolTip(tr("Request timeout in seconds"));
     formLayout->addRow(tr("Timeout:"), m_timeoutSpin);
 
     m_temperatureSpin = new QDoubleSpinBox(this);
     m_temperatureSpin->setRange(0.0, 2.0);
     m_temperatureSpin->setSingleStep(0.1);
     m_temperatureSpin->setDecimals(2);
-    m_temperatureSpin->setToolTip(tr("生成随机性，0=确定，2=最随机"));
+    m_temperatureSpin->setToolTip(tr("Generation randomness: 0=deterministic, 2=maximum randomness"));
     formLayout->addRow(tr("Temperature:"), m_temperatureSpin);
 
     m_apiKeyEdit = new QLineEdit(this);
     m_apiKeyEdit->setEchoMode(QLineEdit::Password);
     m_apiKeyEdit->setPlaceholderText(tr("sk-..."));
-    m_apiKeyEdit->setToolTip(tr("API Key 通过加密存储，不会以明文保存"));
+    m_apiKeyEdit->setToolTip(tr("API Key is stored encrypted and will not be saved in plain text"));
     formLayout->addRow(tr("API Key:"), m_apiKeyEdit);
 
     mainLayout->addLayout(formLayout);
 
     // ---- 底部提示 ----
-    auto* noteLabel = new QLabel(tr("注意：API Key 使用 XOR 混淆存储（临时）。\n"
-                                    "正式版将替换为系统级安全存储（DPAPI/Keychain）。"));
+    auto* noteLabel = new QLabel(tr("Note: API Key uses XOR obfuscation (temporary).\n"
+                                    "Will be replaced with system-level secure storage (DPAPI/Keychain) in release."));
     noteLabel->setWordWrap(true);
     noteLabel->setStyleSheet("color: #888; font-size: 11px;");
     mainLayout->addWidget(noteLabel);
@@ -110,8 +110,8 @@ void LLMSettingsPage::setupUi()
     // ---- 按钮 ----
     auto* btnBox = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    btnBox->button(QDialogButtonBox::Ok)->setText(tr("保存"));
-    btnBox->button(QDialogButtonBox::Cancel)->setText(tr("取消"));
+    btnBox->button(QDialogButtonBox::Ok)->setText(tr("Save"));
+    btnBox->button(QDialogButtonBox::Cancel)->setText(tr("Cancel"));
     mainLayout->addWidget(btnBox);
 }
 
@@ -133,7 +133,7 @@ void LLMSettingsPage::loadSettings()
     // 如果已有 Key，用占位提示
     if (svc->hasApiKey())
     {
-        m_apiKeyEdit->setPlaceholderText(tr("（已设置，输入新 Key 覆盖）"));
+        m_apiKeyEdit->setPlaceholderText(tr("(Set; enter new key to overwrite)"));
     }
 }
 
@@ -142,8 +142,8 @@ void LLMSettingsPage::onSave()
     LLMSettingsService* svc = LLMSettingsService::instance();
     if (!svc || !svc->isInitialized())
     {
-        QMessageBox::warning(this, tr("错误"),
-                             tr("LLM 配置服务未初始化。"));
+        QMessageBox::warning(this, tr("Error"),
+                             tr("LLM settings service is not initialized."));
         return;
     }
 
