@@ -20,6 +20,7 @@
 #include "AIPipeline.h"
 
 #include "AIIntentRouter.h"
+#include "AIPickSession.h"
 #include "ContextResolver.h"
 #include "DeepSeekProvider.h"
 #include "DirectEntityExecutor.h"
@@ -29,6 +30,8 @@
 
 #include <QJsonArray>
 #include <QJsonObject>
+
+#include "QPointer"
 
 // ============================================================================
 // 构造 / 析构
@@ -48,6 +51,9 @@ AIPipeline::AIPipeline(const QString& docsDir,
     , m_contextResolver(doc ? new ContextResolver(doc) : nullptr)
     , m_drawExecutor(doc ? new DirectEntityExecutor(doc) : nullptr)
     , m_modExecutor((doc && docView) ? new ModificationExecutor(doc, docView) : nullptr)
+    , m_pickSession((doc && docView) ? new AIPickSession(doc, docView, this) : nullptr)
+    , m_doc(doc)
+    , m_docView(docView)
 {
     // ---- 1. 初始化 Router（加载关键词 JSON） ----
     m_routerReady = m_router->loadKeywordsFromJson(keywordsJsonPath);
@@ -256,7 +262,6 @@ void AIPipeline::onModelingProviderResponse(const QString& responseText)
 
     if (!cmd.ok)
     {
-        // 解析失败：展示原始 LLM 回复 + 错误原因
         emit errorOccurred(tr("Parse Error"),
                            tr("Failed to parse modeling command from LLM response:\n%1\n\n"
                               "Raw response:\n%2")
@@ -265,36 +270,79 @@ void AIPipeline::onModelingProviderResponse(const QString& responseText)
         return;
     }
 
-    // 2. 检查是否需要确认
+    // 2. 高风险操作提示（首版仅警告，不阻断执行）
     if (cmd.needsConfirmation)
     {
         emit responseReady(tr("System"),
-                           tr("⚠ High-risk operation detected: %1\n\n"
-                              "Please review and confirm before execution.")
-                               .arg(cmd.message));
-        // 首版不实现确认交互，仅提示
-        return;
+                           tr("⚠ High-risk operation: %1").arg(cmd.message));
     }
 
-    // 3. 检查是否有缺失输入
+    // 3. 检查是否有缺失输入 → 启动 AIPickSession
     if (!cmd.missingInputs.isEmpty())
     {
-        QString missingList = cmd.missingInputs.join(QStringLiteral(", "));
-        emit responseReady(tr("System"),
-                           tr("Command parsed, but some inputs are missing: %1\n\n"
-                              "Parsed command: %2\n"
-                              "Please provide these inputs manually or refine your command.")
-                               .arg(missingList)
-                               .arg(cmd.message));
-        // 首版不触发 AIPickSession，仅提示
+        if (!m_pickSession)
+        {
+            QString missingList = cmd.missingInputs.join(QStringLiteral(", "));
+            emit responseReady(tr("System"),
+                               tr("Command requires inputs: %1\n"
+                                  "Please provide these inputs manually or refine your command.")
+                                   .arg(missingList));
+            return;
+        }
+
+        m_pendingCmd = cmd;
+        QPointer<AIPipeline> guard(this);
+        m_pickSession->start(cmd, [guard](bool ok, const QJsonObject& completedParams) {
+            if (!guard) return;
+            if (!ok)
+            {
+                emit guard->responseReady(tr("System"), tr("Operation cancelled."));
+                return;
+            }
+            guard->continueAfterPick(completedParams);
+        });
         return;
     }
 
-    // 4. 解析 selection 中的实体引用
+    // 4. 直接执行
+    executeParsedCommand(cmd);
+}
+
+void AIPipeline::onModelingProviderError(const QString& error)
+{
+    emit errorOccurred(tr("Modeling Error"), error);
+}
+
+void AIPipeline::continueAfterPick(const QJsonObject& completedParams)
+{
+    m_pendingCmd.params = completedParams;
+    m_pendingCmd.missingInputs.clear();
+
+    // PickRequired: embed picked entity IDs into selection.raw for executor resolution
+    if (m_pendingCmd.selection.mode == SelectionMode::PickRequired)
+    {
+        QJsonObject rawWithIds = m_pendingCmd.selection.raw;
+        for (auto it = completedParams.begin(); it != completedParams.end(); ++it)
+        {
+            if (it.value().isString())
+            {
+                rawWithIds.insert(it.key(), it.value());
+            }
+        }
+        m_pendingCmd.selection.raw = rawWithIds;
+    }
+
+    executeParsedCommand(m_pendingCmd);
+}
+
+void AIPipeline::executeParsedCommand(const ParsedCommand& cmd)
+{
+    // 1. 解析 selection 中的实体引用
     if (m_contextResolver)
     {
         ResolvedSelection sel = m_contextResolver->resolve(cmd.selection);
-        if (!sel.ok && cmd.selection.mode != SelectionMode::None)
+        if (!sel.ok && cmd.selection.mode != SelectionMode::None
+            && cmd.selection.mode != SelectionMode::PickRequired)
         {
             emit errorOccurred(tr("Context Error"),
                                tr("Failed to resolve selection: %1").arg(sel.errorMessage));
@@ -306,14 +354,9 @@ void AIPipeline::onModelingProviderResponse(const QString& responseText)
         }
     }
 
-    // 5. 执行命令
+    // 2. 执行命令
     const QString execResult = executeCommand(cmd);
     emit responseReady(tr("AI"), execResult);
-}
-
-void AIPipeline::onModelingProviderError(const QString& error)
-{
-    emit errorOccurred(tr("Modeling Error"), error);
 }
 
 // ============================================================================
@@ -347,6 +390,7 @@ QString AIPipeline::buildModelingPrompt(const QString& userText)
         "    corner1: [x, y], corner2: [x, y]\n"
         "    offset: [dx, dy], distance: number\n"
         "    point: [x, y]\n"
+        "    mouse_point: [x, y]\n"
         "- missing_inputs: (array of strings) inputs that need user interaction\n"
         "- needs_confirmation: (boolean) true for delete or trim operations\n"
         "- message: (string) human-readable description of the operation\n\n"
@@ -355,9 +399,11 @@ QString AIPipeline::buildModelingPrompt(const QString& userText)
         "1. NEVER invent entity IDs. Use selection modes instead.\n"
         "2. When entity selection is needed, set selection.mode to "
         "\"current_selection\" and tell user in message.\n"
-        "3. For delete operations, set needs_confirmation to true.\n"
-        "4. If coordinates are unspecified, list them in missing_inputs.\n"
-        "5. Use only the intent values listed above.\n\n");
+        "3. For delete or trim operations, set needs_confirmation to true.\n"
+        "4. If coordinates or points are unspecified, list them in missing_inputs.\n"
+        "5. Use only the intent values listed above.\n"
+        "6. For trim: mouse_point determines which side to keep. "
+        "If user doesn't specify where to click, always add \"mouse_point\" to missing_inputs.\n\n");
 
     prompt += QStringLiteral("[User Command]\n");
     prompt += userText;

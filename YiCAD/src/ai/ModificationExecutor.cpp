@@ -373,14 +373,6 @@ ModificationResult ModificationExecutor::executeTrim(const ParsedCommand& cmd)
 {
     ModificationResult result;
 
-    // ---- 高删除操作 — 必须确认 ----
-    if (!cmd.needsConfirmation) {
-        result.success           = false;
-        result.needsConfirmation = true;
-        result.errorMessage      = QStringLiteral("Trim is a destructive operation and requires confirmation.");
-        return result;
-    }
-
     // ---- 解析目标实体（既做剪切边又被剪） ----
     std::vector<DmEntity*> targets;
     if (!resolveEntities(cmd.selection, targets)) {
@@ -485,8 +477,38 @@ bool ModificationExecutor::resolveEntities(const SelectionSpec& spec,
         return true;
 
     case SelectionMode::LastCreated:
+    {
+        // 回退策略：遍历文档取最后一个可见实体
+        DmEntity* lastEntity = nullptr;
+        for (auto e : *table)
+        {
+            if (e && e->isVisible())
+            {
+                lastEntity = e;
+            }
+        }
+        if (lastEntity)
+        {
+            out.push_back(lastEntity);
+        }
+        return true;
+    }
+
     case SelectionMode::PickRequired:
-        return false;
+    {
+        // 从 selection.raw 中读取 AIPickSession 回填的实体 ID
+        for (auto it = spec.raw.begin(); it != spec.raw.end(); ++it)
+        {
+            if (it.value().isString())
+            {
+                DmId id(it.value().toString().toStdString());
+                if (!id.isValid()) continue;
+                DmEntity* e = table->find(id);
+                if (e) out.push_back(e);
+            }
+        }
+        return true;
+    }
 
     default:
         return false;

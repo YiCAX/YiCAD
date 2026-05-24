@@ -55,6 +55,7 @@ class DeepSeekProvider;
 class ContextResolver;
 class DirectEntityExecutor;
 class ModificationExecutor;
+class AIPickSession;
 class DmDocument;
 class GuiDocumentView;
 
@@ -140,6 +141,12 @@ private:
     /// @return 人类可读的执行结果描述
     QString executeCommand(const ParsedCommand& cmd);
 
+    /// @brief 执行已解析命令（context resolve + dispatch）
+    void executeParsedCommand(const ParsedCommand& cmd);
+
+    /// @brief AIPickSession 完成后的回调，补全参数后继续执行
+    void continueAfterPick(const QJsonObject& completedParams);
+
     // ---- 子模块 ----
     std::unique_ptr<AIIntentRouter>       m_router;          ///< 意图路由器
     std::unique_ptr<RAGPipeline>          m_ragPipeline;     ///< RAG 问答管线（内含自己的 DeepSeekProvider）
@@ -148,6 +155,14 @@ private:
     std::unique_ptr<ContextResolver>      m_contextResolver; ///< 上下文解析器
     std::unique_ptr<DirectEntityExecutor> m_drawExecutor;    ///< 直接绘图执行器
     std::unique_ptr<ModificationExecutor> m_modExecutor;     ///< 修改命令执行器
+    std::unique_ptr<AIPickSession>        m_pickSession;     ///< AI 补输入会话
+
+    // ---- 缓存的文档指针（供 AIPickSession 等子模块使用） ----
+    DmDocument*       m_doc = nullptr;
+    GuiDocumentView*  m_docView = nullptr;
+
+    // ---- 待处理命令（AIPickSession 进行中时暂存） ----
+    ParsedCommand     m_pendingCmd;
 
     // ---- 状态 ----
     bool m_routerReady  = false;  ///< Router 关键词数据是否已加载

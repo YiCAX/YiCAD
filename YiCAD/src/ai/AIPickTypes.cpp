@@ -35,6 +35,9 @@ static const QSet<QString> kEntityPickKeys = {
     QStringLiteral("selection"),
     QStringLiteral("trim_side"),
     QStringLiteral("extend_to"),
+    QStringLiteral("cutting_edge"),
+    QStringLiteral("entity_to_trim"),
+    QStringLiteral("target"),
 };
 
 PickType pickTypeFromKey(const QString& key)
