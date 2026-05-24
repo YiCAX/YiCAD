@@ -55,6 +55,7 @@ class UIActionGroupManager;
 class UICommandWidget;
 class UIBlockListWidget;
 class UIBlockSaveAs;
+class AIDialog;
 struct SingleTabDraw;
 
 /// @brief 应用程序主窗口，继承自SARibbonMainWindow，管理Ribbon菜单、MDI绘图区域、图层面板和插件
@@ -233,6 +234,9 @@ private slots:
     void onActionLoadCustomizeXmlFileTriggered();
     void onActionWindowFlagNormalButtonTriggered(bool b);
 
+    /// @brief 打开 AI 助手对话框
+    void slotShowAIDialog();
+
     /// @brief 窗体关闭事件
     /// @param [in] event 关闭事件
     void closeEvent(QCloseEvent* event);
@@ -314,6 +318,10 @@ private:
     // 视图列表UI组件
     SARibbonComboBox*               m_pViewportTable = nullptr;         ///< 视图下拉框
     QListWidget*                    m_pViewportWidget = nullptr;        ///< 视图下拉列表
+
+    // AI 助手
+    QAction*                        m_pActAI = nullptr;                 ///< AI助手按钮Action
+    AIDialog*                       m_pAIDialog = nullptr;             ///< AI助手对话框
 };
 
 #endif  // APPLICATIONWINDOW_H
