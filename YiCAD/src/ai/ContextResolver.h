@@ -61,7 +61,7 @@
 ///   - entity_type 映射基于 DM::EntityType 枚举的硬编码表
 ///   - 不支持跨轮引用（如"上上轮创建的线"）
 ///   - 不支持自然语言描述匹配（如"最长的线"）
-///   - PickRequired 模式不在此解析，仍走 AIPickSession
+///   - 所有选择模式均在此解析
 
 #ifndef CONTEXTRESOLVER_H
 #define CONTEXTRESOLVER_H
@@ -160,7 +160,6 @@ public:
     ///   2. LastCreated       → 优先查 TurnRecord，其次查文档所有实体(回退)
     ///   3. All               → 所有可见实体
     ///   4. None              → 空列表，ok=true
-    ///   5. PickRequired      → 不解析，ok=false + errorMessage（应走 AIPickSession）
     ///
     /// 若 spec.raw 中包含 "entity_type" 字段，则在结果上做类型过滤。
     ResolvedSelection resolve(const SelectionSpec& spec) const;

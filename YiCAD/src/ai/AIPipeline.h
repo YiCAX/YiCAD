@@ -48,8 +48,6 @@ class DeepSeekProvider;
 class AILLMClassifier;
 class ContextResolver;
 class DirectEntityExecutor;
-class ModificationExecutor;
-class AIPickSession;
 class DmDocument;
 class GuiDocumentView;
 
@@ -142,15 +140,12 @@ private:
     static QString buildModelingSystemPrompt();
 
     // ---- 执行分发 ----
-    /// @brief 根据 ParsedCommand::intent 分发到 DirectEntityExecutor 或 ModificationExecutor
+    /// @brief 根据 ParsedCommand::intent 分发到 DirectEntityExecutor
     /// @return 人类可读的执行结果描述
     QString executeCommand(const ParsedCommand& cmd);
 
     /// @brief 执行已解析命令（context resolve + dispatch）
     void executeParsedCommand(const ParsedCommand& cmd);
-
-    /// @brief AIPickSession 完成后的回调，补全参数后继续执行
-    void continueAfterPick(const QJsonObject& completedParams);
 
     // ---- 对话记忆 ----
     ConversationHistory                   m_history;         ///< 对话历史（短期记忆 + token 预算管理）
@@ -163,15 +158,8 @@ private:
     LLMCommandBridge                      m_bridge;          ///< JSON 命令桥（无状态）
     std::unique_ptr<ContextResolver>      m_contextResolver; ///< 上下文解析器
     std::unique_ptr<DirectEntityExecutor> m_drawExecutor;    ///< 直接绘图执行器
-    std::unique_ptr<ModificationExecutor> m_modExecutor;     ///< 修改命令执行器
-    std::unique_ptr<AIPickSession>        m_pickSession;     ///< AI 补输入会话
-
-    // ---- 缓存的文档指针（供 AIPickSession 等子模块使用） ----
+    // ---- 缓存的文档指针 ----
     DmDocument*       m_doc = nullptr;
-    GuiDocumentView*  m_docView = nullptr;
-
-    // ---- 待处理命令（AIPickSession 进行中时暂存） ----
-    ParsedCommand     m_pendingCmd;
 
     // ---- 状态 ----
     bool m_routerReady  = false;  ///< LLM 分类器是否可用

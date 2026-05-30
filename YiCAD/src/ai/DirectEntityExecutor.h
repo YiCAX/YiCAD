@@ -23,7 +23,7 @@
 ///     五种意图，从 params 中提取几何参数并直接构造 DmEntity 子类
 ///   - 通过 Transaction 包裹创建过程，保证 Undo/Redo
 ///   - 通过 EntityTable::add 标准路径添加实体
-///   - 不做修改、不做删除、不做 AIPickAction 交互
+///   - 不做修改、不做删除
 ///
 /// 已知限制（当前版本）：
 ///   - 仅支持 5 种直接创建绘制命令

@@ -8004,11 +8004,6 @@ p, li { white-space: pre-wrap; }
         <translation>无需选择（None 模式）。</translation>
     </message>
     <message>
-        <location filename="../src/ai/ContextResolver.cpp" line="170"/>
-        <source>ContextResolver: PickRequired mode — entity must be picked by user. Use AIPickSession to resolve.</source>
-        <translation>ContextResolver: PickRequired 模式 — 实体必须由用户拾取。请使用 AIPickSession 解析。</translation>
-    </message>
-    <message>
         <location filename="../src/ai/ContextResolver.cpp" line="181"/>
         <source>ContextResolver: unknown SelectionMode.</source>
         <translation>ContextResolver: 未知的 SelectionMode。</translation>
@@ -8158,119 +8153,6 @@ p, li { white-space: pre-wrap; }
     </message>
 </context>
 <context>
-    <name>ModificationExecutor</name>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="63"/>
-        <source>ModificationExecutor: unsupported intent '%1'. Only delete / move / copy / offset / trim are supported.</source>
-        <translation>ModificationExecutor: 不支持的意图 '%1'。仅支持 delete / move / copy / offset / trim。</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="95"/>
-        <source>Delete all entities requires confirmation.</source>
-        <translation>删除所有实体需要确认。</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="103"/>
-        <source>ModificationExecutor::delete — failed to resolve entities.</source>
-        <translation>ModificationExecutor::delete — 无法解析实体。</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="109"/>
-        <source>ModificationExecutor::delete — no entities selected.</source>
-        <translation>ModificationExecutor::delete — 没有选中实体。</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="167"/>
-        <source>ModificationExecutor::move — %1</source>
-        <translation>ModificationExecutor::move — %1</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="172"/>
-        <source>ModificationExecutor::move — offset is invalid.</source>
-        <translation>ModificationExecutor::move — 偏移量无效。</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="180"/>
-        <source>ModificationExecutor::move — failed to resolve entities.</source>
-        <translation>ModificationExecutor::move — 无法解析实体。</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="185"/>
-        <source>ModificationExecutor::move — no entities selected.</source>
-        <translation>ModificationExecutor::move — 没有选中实体。</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="232"/>
-        <source>ModificationExecutor::copy — %1</source>
-        <translation>ModificationExecutor::copy — %1</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="237"/>
-        <source>ModificationExecutor::copy — offset is invalid.</source>
-        <translation>ModificationExecutor::copy — 偏移量无效。</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="245"/>
-        <source>ModificationExecutor::copy — failed to resolve entities.</source>
-        <translation>ModificationExecutor::copy — 无法解析实体。</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="250"/>
-        <source>ModificationExecutor::copy — no entities selected.</source>
-        <translation>ModificationExecutor::copy — 没有选中实体。</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="276"/>
-        <source>ModificationExecutor::copy — failed to clone any entity.</source>
-        <translation>ModificationExecutor::copy — 无法克隆任何实体。</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="298"/>
-        <source>ModificationExecutor::offset — %1</source>
-        <translation>ModificationExecutor::offset — %1</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="303"/>
-        <source>ModificationExecutor::offset — distance must be positive.</source>
-        <translation>ModificationExecutor::offset — 距离必须为正数。</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="315"/>
-        <source>ModificationExecutor::offset — failed to resolve entities.</source>
-        <translation>ModificationExecutor::offset — 无法解析实体。</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="320"/>
-        <source>ModificationExecutor::offset — no entities selected.</source>
-        <translation>ModificationExecutor::offset — 没有选中实体。</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="357"/>
-        <source>ModificationExecutor::offset — no entity could be offset. Entity type may not support offset.</source>
-        <translation>ModificationExecutor::offset — 没有实体可被偏移。实体类型可能不支持偏移。</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="380"/>
-        <source>ModificationExecutor::trim — failed to resolve entities.</source>
-        <translation>ModificationExecutor::trim — 无法解析实体。</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="385"/>
-        <source>ModificationExecutor::trim — at least 2 entities required (cutting edge + entity to trim).</source>
-        <translation>ModificationExecutor::trim — 至少需要 2 个实体（剪切边 + 被修剪实体）。</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="396"/>
-        <source>ModificationExecutor::trim — %1</source>
-        <translation>ModificationExecutor::trim — %1</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/ModificationExecutor.cpp" line="429"/>
-        <source>ModificationExecutor::trim — no entities could be trimmed. Ensure mouse_point is on the side to keep and entities intersect.</source>
-        <translation>ModificationExecutor::trim — 没有实体可被修剪。请确保鼠标点位于要保留的一侧且实体相交。</translation>
-    </message>
-</context>
-<context>
     <name>LLMCommandBridge</name>
     <message>
         <location filename="../src/ai/LLMCommandBridge.cpp" line="166"/>
@@ -8304,69 +8186,6 @@ p, li { white-space: pre-wrap; }
     </message>
 </context>
 <context>
-    <name>AIPickAction</name>
-    <message>
-        <location filename="../src/ai/AIPickAction.cpp" line="40"/>
-        <source>Point</source>
-        <translation>点</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/AIPickAction.cpp" line="41"/>
-        <source>Line</source>
-        <translation>线</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/AIPickAction.cpp" line="42"/>
-        <source>Circle</source>
-        <translation>圆</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/AIPickAction.cpp" line="43"/>
-        <source>Arc</source>
-        <translation>圆弧</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/AIPickAction.cpp" line="44"/>
-        <source>Ellipse</source>
-        <translation>椭圆</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/AIPickAction.cpp" line="45"/>
-        <source>Polyline</source>
-        <translation>多段线</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/AIPickAction.cpp" line="46"/>
-        <source>BlockRef</source>
-        <translation>块参照</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/AIPickAction.cpp" line="47"/>
-        <source>Text</source>
-        <translation>文字</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/AIPickAction.cpp" line="48"/>
-        <source>MText</source>
-        <translation>多行文字</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/AIPickAction.cpp" line="49"/>
-        <source>Spline</source>
-        <translation>样条曲线</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/AIPickAction.cpp" line="50"/>
-        <source>Hatch</source>
-        <translation>填充</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/AIPickAction.cpp" line="51"/>
-        <source>Entity(%1)</source>
-        <translation>实体(%1)</translation>
-    </message>
-</context>
-<context>
     <name>DeepSeekProvider</name>
     <message>
         <location filename="../src/ai/DeepSeekProvider.cpp" line="256"/>
@@ -8382,44 +8201,6 @@ p, li { white-space: pre-wrap; }
         <location filename="../src/ai/DeepSeekProvider.cpp" line="267"/>
         <source> code=%1</source>
         <translation> code=%1</translation>
-    </message>
-</context>
-<context>
-    <name>AIPickSession</name>
-    <message>
-        <location filename="../src/ai/AIPickSession.cpp" line="145"/>
-        <source>[%1/%2] %3</source>
-        <translation>[%1/%2] %3</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/AIPickSession.cpp" line="79"/>
-        <source>AI needs additional input (%1 items)</source>
-        <translation>AI 需要补充输入（%1 项）</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/AIPickSession.cpp" line="103"/>
-        <source>AI input supplement cancelled</source>
-        <translation>AI 输入补充已取消</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/AIPickSession.cpp" line="123"/>
-        <source>AI input supplement complete</source>
-        <translation>AI 输入补充完成</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/AIPickSession.cpp" line="179"/>
-        <source>Specify %1 on canvas</source>
-        <translation>在画布上指定 %1</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/AIPickSession.cpp" line="181"/>
-        <source>Select %1 entity</source>
-        <translation>选择 %1 实体</translation>
-    </message>
-    <message>
-        <location filename="../src/ai/AIPickSession.cpp" line="183"/>
-        <source>Operate on canvas</source>
-        <translation>在画布上操作</translation>
     </message>
 </context>
 <context>

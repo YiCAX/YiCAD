@@ -165,15 +165,6 @@ ResolvedSelection ContextResolver::resolve(const SelectionSpec& spec) const
         return result;
     }
 
-    case SelectionMode::PickRequired: {
-        ResolvedSelection result;
-        result.ok           = false;
-        result.errorMessage = tr(
-            "ContextResolver: PickRequired mode — entity must be picked by user. "
-            "Use AIPickSession to resolve.");
-        result.explanation  = result.errorMessage;
-        return result;
-    }
     }
 
     // unreachable, but keep compiler happy

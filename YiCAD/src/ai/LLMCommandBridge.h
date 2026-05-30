@@ -64,7 +64,6 @@ enum class SelectionMode
     None,              ///< 无需选择（如新建实体）
     CurrentSelection,  ///< 使用当前画布已选中的实体
     LastCreated,       ///< 使用最近创建的实体
-    PickRequired,      ///< 需要用户在画布上拾取
     All,               ///< 操作全部实体（如全选删除）
 };
 
@@ -72,9 +71,6 @@ enum class SelectionMode
 struct SelectionSpec
 {
     SelectionMode mode      = SelectionMode::None;
-
-    /// 当 mode == PickRequired 时，给用户的提示文本
-    QString       pickHint;
 
     /// 原始 JSON 中 selection 字段内容（透传，供下游 ContextResolver 使用）
     QJsonObject   raw;
@@ -105,21 +101,6 @@ enum class CommandIntent
     DrawSpline,
     DrawPolyline,
     DrawText,
-
-    // ---- 修改 ----
-    Move,
-    Copy,
-    Delete,
-    Rotate,
-    Scale,
-    Mirror,
-    Offset,
-    Trim,
-    Extend,
-    Bevel,       // 倒角
-    Round,       // 倒圆
-    Explode,
-    Cut,         // 打断
 
     // ---- 标注 ----
     Dimension,
@@ -189,7 +170,6 @@ public:
     ///   1. 从原始文本中提取 JSON 片段（处理 ```json ... ``` 包裹）
     ///   2. JSON 解析
     ///   3. 逐字段校验
-    ///   4. 高风险操作标记
     ParsedCommand parse(const QString& llmRawResponse) const;
 
 private:
@@ -200,12 +180,9 @@ private:
     static bool tryParseJson(const QString& candidate, QJsonObject& out,
                              QString& errorDetail);
 
-    // ---- 步骤 3 & 4：字段校验 + 组装 ----
+    // ---- 步骤 3：字段校验 + 组装 ----
     static ParsedCommand buildFromJson(const QJsonObject& obj,
                                        const QString& rawText);
-
-    // ---- 高风险意图集合 ----
-    static bool isHighRiskIntent(CommandIntent intent);
 };
 
 #endif // LLMCOMMANDBRIDGE_H

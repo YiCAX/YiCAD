@@ -47,21 +47,6 @@ constexpr IntentEntry kIntentTable[] = {
     { "draw_polyline",       CommandIntent::DrawPolyline    },
     { "draw_text",           CommandIntent::DrawText        },
 
-    // ---- 修改 ----
-    { "move",                CommandIntent::Move            },
-    { "copy",                CommandIntent::Copy            },
-    { "delete",              CommandIntent::Delete          },
-    { "rotate",              CommandIntent::Rotate          },
-    { "scale",               CommandIntent::Scale           },
-    { "mirror",              CommandIntent::Mirror          },
-    { "offset",              CommandIntent::Offset          },
-    { "trim",                CommandIntent::Trim            },
-    { "extend",              CommandIntent::Extend          },
-    { "bevel",               CommandIntent::Bevel           },
-    { "round",               CommandIntent::Round           },
-    { "explode",             CommandIntent::Explode         },
-    { "cut",                 CommandIntent::Cut             },
-
     // ---- 标注 ----
     { "dimension",           CommandIntent::Dimension       },
     { "dimension_linear",    CommandIntent::DimensionLinear },
@@ -139,9 +124,6 @@ SelectionSpec SelectionSpec::fromJson(const QJsonObject& obj)
         spec.mode = SelectionMode::CurrentSelection;
     } else if (modeStr == QStringLiteral("last_created")) {
         spec.mode = SelectionMode::LastCreated;
-    } else if (modeStr == QStringLiteral("pick")) {
-        spec.mode = SelectionMode::PickRequired;
-        spec.pickHint = obj.value(QStringLiteral("pick_hint")).toString();
     } else if (modeStr == QStringLiteral("all")) {
         spec.mode = SelectionMode::All;
     } else {
@@ -343,31 +325,9 @@ ParsedCommand LLMCommandBridge::buildFromJson(const QJsonObject& obj,
         }
     }
 
-    // ---- 4. 高风险操作自动标记 ----
-    if (isHighRiskIntent(cmd.intent)) {
-        cmd.needsConfirmation = true;
-    }
-
     // ---- 全部通过 ----
     cmd.ok = true;
     return cmd;
 }
 
-// ============================================================================
-// 高风险意图
-// ============================================================================
 
-bool LLMCommandBridge::isHighRiskIntent(CommandIntent intent)
-{
-    // 破坏性操作默认需要确认
-    switch (intent) {
-    case CommandIntent::Delete:
-    case CommandIntent::Explode:
-    case CommandIntent::Cut:
-    case CommandIntent::Trim:    // 修剪也是破坏性的
-        return true;
-
-    default:
-        return false;
-    }
-}
