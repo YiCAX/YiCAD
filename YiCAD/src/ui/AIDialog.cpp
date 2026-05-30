@@ -150,6 +150,11 @@ void AIDialog::setupConnections()
             this, &AIDialog::slotModeChanged);
 }
 
+void AIDialog::clearChatView()
+{
+    m_pChatView->clear();
+}
+
 void AIDialog::appendMessage(const QString& sender, const QString& message)
 {
     m_pChatView->moveCursor(QTextCursor::End);

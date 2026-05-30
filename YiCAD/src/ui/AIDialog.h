@@ -57,6 +57,9 @@ public:
     /// @param [in] message 消息内容
     void appendMessage(const QString& sender, const QString& message);
 
+    /// @brief 清空对话显示区（用于加载历史会话前清理旧内容）
+    void clearChatView();
+
 signals:
     /// @brief 用户点击发送按钮，携带输入文本和当前模式
     /// @param [in] text 用户输入的文本
@@ -75,6 +78,10 @@ signals:
 
     /// @brief 用户点击历史记录按钮
     void historyRequested();
+
+    /// @brief 用户选择加载某个历史会话
+    /// @param [in] sessionId 会话 ID
+    void loadSessionRequested(const QString& sessionId);
 
 protected:
     /// @brief 关闭事件，隐藏而非销毁（modeless 行为）

@@ -22,6 +22,7 @@
 #include "AIIntentRouter.h"
 #include "AIPickSession.h"
 #include "ContextResolver.h"
+#include "ConversationHistory.h"
 #include "DeepSeekProvider.h"
 #include "DirectEntityExecutor.h"
 #include "LLMCommandBridge.h"
@@ -126,6 +127,9 @@ void AIPipeline::handleUserInput(const QString& text, const QString& mode)
         return;
     }
 
+    // ---- 0. 记录用户消息到对话历史 ----
+    m_history.pushUser(text);
+
     // ---- 1. 路由分类 ----
     const RouterResult route = m_router->route(text, mode);
 
@@ -133,10 +137,12 @@ void AIPipeline::handleUserInput(const QString& text, const QString& mode)
     switch (route.intent)
     {
     case IntentType::QA:
+        m_lastResolvedIntent = IntentType::QA;
         handleUserInput_QA(route, text);
         break;
 
     case IntentType::Modeling:
+        m_lastResolvedIntent = IntentType::Modeling;
         handleUserInput_Modeling(route, text);
         break;
 
@@ -147,18 +153,56 @@ void AIPipeline::handleUserInput(const QString& text, const QString& mode)
                               "Providing help answer first. "
                               "Switch to Modeling mode if you want to execute.")
                                .arg(route.reasoning));
+        m_lastResolvedIntent = IntentType::QA;
         handleUserInput_QA(route, text);
         break;
 
     case IntentType::Uncertain:
     default:
-        emit responseReady(tr("System"),
-                           tr("Unable to determine your intent. %1\n\n"
-                              "Try:\n"
-                              "  • QA mode for questions like \"how to trim\"\n"
-                              "  • Modeling mode for commands like \"draw a circle\"")
-                               .arg(route.suggestedAction));
+    {
+        // 多轮对话上下文继承：如果有关键词无法匹配但有历史，沿用上一轮意图
+        const auto& historyMsgs = m_history.allMessages();
+        const bool hasHistory = historyMsgs.size() >= 2;  // 至少有一轮对话
+
+        if (hasHistory)
+        {
+            if (m_lastResolvedIntent == IntentType::Modeling && m_modelingReady)
+            {
+                emit responseReady(tr("System"),
+                                   tr("Continuing in Modeling mode based on conversation context."));
+                m_lastResolvedIntent = IntentType::Modeling;
+                handleUserInput_Modeling(route, text);
+            }
+            else if (m_lastResolvedIntent == IntentType::QA && m_ragReady)
+            {
+                emit responseReady(tr("System"),
+                                   tr("Continuing in QA mode based on conversation context."));
+                m_lastResolvedIntent = IntentType::QA;
+                handleUserInput_QA(route, text);
+            }
+            else
+            {
+                // 有历史但对应链路不可用 → 降级提示
+                emit responseReady(tr("System"),
+                                   tr("Unable to determine your intent. %1\n\n"
+                                      "Try:\n"
+                                      "  • QA mode for questions like \"how to trim\"\n"
+                                      "  • Modeling mode for commands like \"draw a circle\"")
+                                       .arg(route.suggestedAction));
+            }
+        }
+        else
+        {
+            // 首轮就无法判定 → 原样提示
+            emit responseReady(tr("System"),
+                               tr("Unable to determine your intent. %1\n\n"
+                                  "Try:\n"
+                                  "  • QA mode for questions like \"how to trim\"\n"
+                                  "  • Modeling mode for commands like \"draw a circle\"")
+                                   .arg(route.suggestedAction));
+        }
         break;
+    }
     }
 }
 
@@ -200,6 +244,9 @@ void AIPipeline::handleUserInput_QA(const RouterResult& route, const QString& te
 
 void AIPipeline::onRAGAnswer(const RAGAnswer& answer)
 {
+    // 记录 assistant 回复到对话历史
+    m_history.pushAssistant(answer.answer);
+
     // 组装展示文本：主回答 + 引用
     QString display = answer.answer;
 
@@ -250,9 +297,12 @@ void AIPipeline::handleUserInput_Modeling(const RouterResult& route, const QStri
                        tr("Intent: Modeling (%1%). Generating command...")
                            .arg(static_cast<int>(route.confidence * 100)));
 
-    // 构建 modeling prompt 并发送给 LLM
-    const QString prompt = buildModelingPrompt(text);
-    m_modelingProvider->sendMessage(prompt);
+    // 注入建模系统指令到对话历史
+    m_history.pushSystem(buildModelingSystemPrompt());
+
+    // 发送给 LLM：传入历史消息数组（含 system + 前文）
+    const QString sysPrompt = buildModelingSystemPrompt();
+    m_modelingProvider->sendMessage(text, m_history.toMessages(sysPrompt));
 }
 
 void AIPipeline::onModelingProviderResponse(const QString& responseText)
@@ -306,6 +356,9 @@ void AIPipeline::onModelingProviderResponse(const QString& responseText)
 
     // 4. 直接执行
     executeParsedCommand(cmd);
+
+    // 5. 记录 assistant 回复到对话历史
+    //    （executeParsedCommand 内部已 emit responseReady，此处仅记账）
 }
 
 void AIPipeline::onModelingProviderError(const QString& error)
@@ -363,15 +416,17 @@ void AIPipeline::executeParsedCommand(const ParsedCommand& cmd)
 // Modeling prompt 构建
 // ============================================================================
 
-QString AIPipeline::buildModelingPrompt(const QString& userText)
+QString AIPipeline::buildModelingSystemPrompt()
 {
     // 注意：prompt 内容使用 QStringLiteral 而非 tr()，
     // 因为这些是发给 LLM 的指令，不应随 UI 语言切换而变化。
+    //
+    // 此方法只返回 system 指令部分。
+    // 用户输入由 handleUserInput_Modeling() 通过对话历史的 user 消息传递。
 
     QString prompt;
 
     prompt += QStringLiteral(
-        "[System Instruction]\n"
         "You are YiCAD's CAD modeling command parser.\n"
         "Convert natural language CAD commands into a single JSON object.\n"
         "Output ONLY the JSON object, no markdown fences, no explanations.\n\n"
@@ -403,11 +458,9 @@ QString AIPipeline::buildModelingPrompt(const QString& userText)
         "4. If coordinates or points are unspecified, list them in missing_inputs.\n"
         "5. Use only the intent values listed above.\n"
         "6. For trim: mouse_point determines which side to keep. "
-        "If user doesn't specify where to click, always add \"mouse_point\" to missing_inputs.\n\n");
+        "If user doesn't specify where to click, always add \"mouse_point\" to missing_inputs.\n\n"
 
-    prompt += QStringLiteral("[User Command]\n");
-    prompt += userText;
-    prompt += QStringLiteral("\n\n[Output JSON only]");
+        "Output the JSON object only, no other text.");
 
     return prompt;
 }
@@ -418,6 +471,9 @@ QString AIPipeline::buildModelingPrompt(const QString& userText)
 
 QString AIPipeline::executeCommand(const ParsedCommand& cmd)
 {
+    // 记录 assistant 回复到对话历史
+    m_history.pushAssistant(cmd.message);
+
     // 根据 intent 类型分发到不同的执行器
     // 绘制类 intent → DirectEntityExecutor
     // 修改类 intent → ModificationExecutor

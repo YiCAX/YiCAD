@@ -42,6 +42,9 @@
 
 #include <QObject>
 #include <QString>
+#include <QVector>
+
+struct MessageEntry;
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -58,12 +61,21 @@ public:
     /// @brief 析构函数
     ~DeepSeekProvider() override;
 
-    /// @brief 发送一条用户消息到 DeepSeek API
+    /// @brief 发送一条用户消息到 DeepSeek API（无历史上下文）
     /// @param [in] userMessage 用户输入文本
     ///
     /// 调用前应确保 LLMSettingsService 已初始化且 API Key 已配置。
     /// 结果通过 responseReceived / errorOccurred 信号异步返回。
     void sendMessage(const QString& userMessage);
+
+    /// @brief 发送一条用户消息，附带完整对话历史
+    /// @param [in] userMessage     用户输入文本
+    /// @param [in] historyMessages 历史消息数组（按时间升序，不含当前 userMessage）
+    ///
+    /// 此重载将 historyMessages + userMessage 合并为完整 messages 数组
+    /// 发送给 API，使 LLM 能感知前文。
+    void sendMessage(const QString& userMessage,
+                     const QVector<MessageEntry>& historyMessages);
 
 signals:
     /// @brief 成功收到 AI 回复
@@ -80,13 +92,22 @@ private slots:
     void onReplyFinished(QNetworkReply* reply);
 
 private:
-    /// @brief 构建 Chat Completions 请求体 JSON
+    /// @brief 构建 Chat Completions 请求体 JSON（单条消息，无历史）
     /// @param [in] model       模型名称
     /// @param [in] userMessage 用户消息文本
     /// @param [in] temperature 温度参数
     /// @return JSON 字节数组
     QByteArray buildRequestBody(const QString& model,
                                 const QString& userMessage,
+                                double temperature) const;
+
+    /// @brief 构建 Chat Completions 请求体 JSON（带完整历史消息）
+    /// @param [in] model       模型名称
+    /// @param [in] messages    历史消息数组 + 当前 user 消息
+    /// @param [in] temperature 温度参数
+    /// @return JSON 字节数组
+    QByteArray buildRequestBody(const QString& model,
+                                const QVector<MessageEntry>& messages,
                                 double temperature) const;
 
     /// @brief 从 DeepSeek 响应 JSON 中提取 assistant 文本

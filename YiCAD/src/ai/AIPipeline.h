@@ -48,10 +48,9 @@
 #include <QString>
 #include <memory>
 
-class AIIntentRouter;
+#include "AIIntentRouter.h"
 class RAGPipeline;
 class DeepSeekProvider;
-#include "LLMCommandBridge.h"
 class ContextResolver;
 class DirectEntityExecutor;
 class ModificationExecutor;
@@ -62,6 +61,9 @@ class GuiDocumentView;
 struct RAGAnswer;
 struct RouterResult;
 struct ParsedCommand;
+
+#include "LLMCommandBridge.h"
+#include "ConversationHistory.h"
 
 class AIPipeline : public QObject
 {
@@ -88,6 +90,9 @@ public:
     /// @brief 整体是否就绪（路由 + RAG 均已初始化）
     bool isReady() const;
 
+    /// @brief 获取对话历史引用（供 AIAssistant 持久化读写）
+    ConversationHistory& history() { return m_history; }
+
     /// @brief 处理一条用户输入（从 AIDialog 的 sendRequested 信号驱动）
     /// @param text 用户原始输入文本
     /// @param mode 路由模式 token："qa" / "modeling" / "auto"
@@ -95,7 +100,7 @@ public:
     /// 流程：
     ///   1. AIIntentRouter::route() 分类
     ///   2. QA  → RAGPipeline::query()
-    ///   3. Modeling → buildModelingPrompt → DeepSeekProvider → LLMCommandBridge → execute
+    ///   3. Modeling → buildModelingSystemPrompt → DeepSeekProvider → LLMCommandBridge → execute
     ///   4. Mixed → 先走 QA，额外提示可执行
     ///   5. Uncertain → 提示用户澄清意图
     void handleUserInput(const QString& text, const QString& mode);
@@ -133,8 +138,8 @@ private:
     static QString modeToRouterToken(int comboIndex);
 
     // ---- Modeling prompt 构建 ----
-    /// @brief 构建发送给 LLM 的建模系统指令 + 用户输入
-    static QString buildModelingPrompt(const QString& userText);
+    /// @brief 构建发送给 LLM 的建模系统指令（不含用户输入）
+    static QString buildModelingSystemPrompt();
 
     // ---- 执行分发 ----
     /// @brief 根据 ParsedCommand::intent 分发到 DirectEntityExecutor 或 ModificationExecutor
@@ -146,6 +151,9 @@ private:
 
     /// @brief AIPickSession 完成后的回调，补全参数后继续执行
     void continueAfterPick(const QJsonObject& completedParams);
+
+    // ---- 对话记忆 ----
+    ConversationHistory                   m_history;         ///< 对话历史（短期记忆 + token 预算管理）
 
     // ---- 子模块 ----
     std::unique_ptr<AIIntentRouter>       m_router;          ///< 意图路由器
@@ -170,6 +178,7 @@ private:
     bool m_modelingReady = false; ///< 建模链路是否可用（doc + docView 均非空）
     QString m_lastUserText;       ///< 最近一次用户输入（调试用）
     QString m_lastMode;           ///< 最近一次模式（调试用）
+    IntentType m_lastResolvedIntent = IntentType::QA; ///< 最近一次成功分发的意图（用于 Uncertain 继承）
 };
 
 #endif // AIPIPELINE_H

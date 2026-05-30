@@ -18,6 +18,7 @@
 /// @brief DeepSeekProvider 实现 —— 最小可用文本请求
 
 #include "DeepSeekProvider.h"
+#include "ConversationHistory.h"
 #include "LLMSettingsService.h"
 
 #include <QJsonDocument>
@@ -50,6 +51,13 @@ DeepSeekProvider::~DeepSeekProvider() = default;
 
 void DeepSeekProvider::sendMessage(const QString& userMessage)
 {
+    // 委托到新重载，传空历史
+    sendMessage(userMessage, QVector<MessageEntry>());
+}
+
+void DeepSeekProvider::sendMessage(const QString& userMessage,
+                                   const QVector<MessageEntry>& historyMessages)
+{
     // ---- 1. 读取配置 ----
     LLMSettingsService* svc = LLMSettingsService::instance();
     if (!svc || !svc->isInitialized())
@@ -71,7 +79,11 @@ void DeepSeekProvider::sendMessage(const QString& userMessage)
     const int     timeoutSecs = svc->timeoutSecs();
     const double  temperature = svc->temperature();
 
-    // ---- 3. 构建请求 ----
+    // ---- 3. 构建完整消息数组：历史 + 当前用户输入 ----
+    QVector<MessageEntry> allMessages = historyMessages;
+    allMessages.append(MessageEntry(QStringLiteral("user"), userMessage));
+
+    // ---- 4. 构建请求 ----
     const QUrl url(baseUrl + "/chat/completions");
 
     QNetworkRequest request(url);
@@ -83,9 +95,9 @@ void DeepSeekProvider::sendMessage(const QString& userMessage)
     request.setTransferTimeout(timeoutSecs * 1000);  // Qt 5.15+
 #endif
 
-    const QByteArray body = buildRequestBody(model, userMessage, temperature);
+    const QByteArray body = buildRequestBody(model, allMessages, temperature);
 
-    // ---- 4. 发起 POST ----
+    // ---- 5. 发起 POST ----
     QNetworkReply* reply = m_networkManager->post(request, body);
 
     // 兜底超时（与 setTransferTimeout 双保险）
@@ -191,6 +203,29 @@ QByteArray DeepSeekProvider::buildRequestBody(const QString& model,
     QJsonObject root;
     root["model"]       = model;
     root["messages"]    = messages;
+    root["temperature"] = temperature;
+    root["stream"]      = false;
+
+    QJsonDocument doc(root);
+    return doc.toJson(QJsonDocument::Compact);
+}
+
+QByteArray DeepSeekProvider::buildRequestBody(const QString& model,
+                                              const QVector<MessageEntry>& messages,
+                                              double temperature) const
+{
+    QJsonArray messagesJson;
+    for (const auto& msg : messages)
+    {
+        QJsonObject msgObj;
+        msgObj["role"]    = msg.role;
+        msgObj["content"] = msg.content;
+        messagesJson.append(msgObj);
+    }
+
+    QJsonObject root;
+    root["model"]       = model;
+    root["messages"]    = messagesJson;
     root["temperature"] = temperature;
     root["stream"]      = false;
 
