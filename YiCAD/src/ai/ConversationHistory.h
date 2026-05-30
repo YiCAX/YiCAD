@@ -98,6 +98,13 @@ public:
     /// @brief 获取所有消息（用于 UI 展示 / 持久化）
     const QVector<MessageEntry>& allMessages() const;
 
+    /// @brief 获取最近 N 条用户消息文本（倒序：最新在前）
+    /// @param n 最大返回条数（默认 2）
+    /// @return 最近 N 条 role=="user" 的消息内容，按时间降序排列
+    ///
+    /// 用于 LLM 意图分类时注入对话上下文。
+    QStringList recentUserMessages(int n = 2) const;
+
     /// @brief 用给定的消息列表替换当前全部历史（用于加载旧会话）
     /// @param messages 按时间升序排列的消息列表
     void loadFrom(const QVector<MessageEntry>& messages);

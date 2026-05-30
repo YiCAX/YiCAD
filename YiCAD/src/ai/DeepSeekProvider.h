@@ -77,6 +77,18 @@ public:
     void sendMessage(const QString& userMessage,
                      const QVector<MessageEntry>& historyMessages);
 
+    /// @brief 发送消息，附带完整参数覆盖（用于分类器等需要精确控制参数的场景）
+    /// @param [in] userMessage     用户输入文本
+    /// @param [in] historyMessages 历史消息数组（可为空）
+    /// @param [in] systemPrompt    覆盖 system 消息（为空则使用默认 CAD assistant prompt）
+    /// @param [in] temperature     覆盖 temperature（< 0 表示使用全局默认）
+    /// @param [in] maxTokens       覆盖 max_tokens（0 表示不限制）
+    void sendMessage(const QString& userMessage,
+                     const QVector<MessageEntry>& historyMessages,
+                     const QString& systemPrompt,
+                     double temperature,
+                     int maxTokens);
+
 signals:
     /// @brief 成功收到 AI 回复
     /// @param [in] responseText AI 返回的文本内容
@@ -109,6 +121,19 @@ private:
     QByteArray buildRequestBody(const QString& model,
                                 const QVector<MessageEntry>& messages,
                                 double temperature) const;
+
+    /// @brief 构建 Chat Completions 请求体 JSON（完整参数覆盖）
+    /// @param [in] model        模型名称
+    /// @param [in] messages     历史消息数组 + 当前 user 消息
+    /// @param [in] systemPrompt system 消息内容（插入为第一条消息）
+    /// @param [in] temperature  温度参数
+    /// @param [in] maxTokens    max_tokens（0 表示不限制）
+    /// @return JSON 字节数组
+    QByteArray buildRequestBody(const QString& model,
+                                const QVector<MessageEntry>& messages,
+                                const QString& systemPrompt,
+                                double temperature,
+                                int maxTokens) const;
 
     /// @brief 从 DeepSeek 响应 JSON 中提取 assistant 文本
     /// @param [in] responseData 响应体 JSON

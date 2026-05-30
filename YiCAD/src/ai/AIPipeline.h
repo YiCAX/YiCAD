@@ -15,31 +15,24 @@
  */
 
 /// @file AIPipeline.h
-/// @brief AI 总调度器 —— 串联路由、RAG、建模桥接、执行器，实现设计文档 §4.1 的完整流程
+/// @brief AI 总调度器 —— 串联 LLM 分类、路由、RAG、建模桥接、执行器
 ///
 /// 职责：
-///   - 持有并管理 AIIntentRouter / RAGPipeline / LLMCommandBridge / Executors
-///   - 接收用户输入，调用 Router 分类，分发到 QA 或 Modeling 链路
+///   - 持有并管理 AILLMClassifier / AIIntentRouter / RAGPipeline / LLMCommandBridge / Executors
+///   - 接收用户输入，LLM 异步分类 → 分发到 QA 或 Modeling 链路
+///   - 手动模式 (qa / modeling) 同步分发，Bypass LLM
 ///   - QA 链路：RAGPipeline 检索 + 模型回答 + 引用
 ///   - Modeling 链路：LLM 建模 prompt → JSON 解析 → ContextResolver → Executor
+///   - 3B 双 Pipeline 并发：LLM 不确定时 QA+Modeling 同时飞行
 ///   - 统一通过 responseReady / errorOccurred 信号向 UI 层回报
 ///
 /// 使用方式：
 ///   @code
-///     auto* pipeline = new AIPipeline(docsDir, readmePath, keywordsPath,
-///                                     doc, docView, this);
+///     auto* pipeline = new AIPipeline(docsDir, readmePath, doc, docView, this);
 ///     connect(pipeline, &AIPipeline::responseReady,
 ///             dialog, &AIDialog::appendMessage);
-///     connect(pipeline, &AIPipeline::errorOccurred,
-///             dialog, &AIDialog::appendMessage);
-///     pipeline->handleUserInput("怎么画圆", "auto");
+///     pipeline->handleUserInput("draw a circle", "auto");
 ///   @endcode
-///
-/// 已知限制（当前版本）：
-///   - DmDocument* / GuiDocumentView* 在构造时传入，不支持运行时切换文档
-///   - missing_inputs 仅做提示展示，不触发 AIPickSession 补输入交互
-///   - 混合意图 (Mixed) 先走 QA 回答，暂不跟进"是否执行"确认
-///   - 不支持多轮对话状态（每次 handleUserInput 独立处理）
 
 #ifndef AIPIPELINE_H
 #define AIPIPELINE_H
@@ -47,10 +40,12 @@
 #include <QObject>
 #include <QString>
 #include <memory>
+#include <optional>
 
 #include "AIIntentRouter.h"
 class RAGPipeline;
 class DeepSeekProvider;
+class AILLMClassifier;
 class ContextResolver;
 class DirectEntityExecutor;
 class ModificationExecutor;
@@ -58,7 +53,7 @@ class AIPickSession;
 class DmDocument;
 class GuiDocumentView;
 
-struct RAGAnswer;
+#include "RAGTypes.h"
 struct RouterResult;
 struct ParsedCommand;
 
@@ -70,16 +65,14 @@ class AIPipeline : public QObject
     Q_OBJECT
 
 public:
-    /// @brief 构造函数 —— 初始化所有子模块
-    /// @param docsDir          docs/ 目录路径（用于 RAG 知识库）
-    /// @param readmePath       README.md 路径（用于 RAG 知识库）
-    /// @param keywordsJsonPath intent_keywords.json 路径（用于路由关键词加载）
-    /// @param doc              当前文档指针（用于建模执行器，可为 nullptr）
-    /// @param docView           当前文档视图指针（用于建模执行器 UI 刷新，可为 nullptr）
-    /// @param parent            父 QObject
+    /// @brief 构造函数 —— 初始化所有子模块（不含关键词 JSON 路径，分类由 LLM 完成）
+    /// @param docsDir    docs/ 目录路径（用于 RAG 知识库）
+    /// @param readmePath README.md 路径（用于 RAG 知识库）
+    /// @param doc        当前文档指针（用于建模执行器，可为 nullptr）
+    /// @param docView     当前文档视图指针（用于建模执行器 UI 刷新，可为 nullptr）
+    /// @param parent      父 QObject
     explicit AIPipeline(const QString& docsDir,
                         const QString& readmePath,
-                        const QString& keywordsJsonPath,
                         DmDocument* doc,
                         GuiDocumentView* docView,
                         QObject* parent = nullptr);
@@ -87,7 +80,7 @@ public:
     /// @brief 析构函数
     ~AIPipeline() override;
 
-    /// @brief 整体是否就绪（路由 + RAG 均已初始化）
+    /// @brief 整体是否就绪（LLM 分类器可用）
     bool isReady() const;
 
     /// @brief 获取对话历史引用（供 AIAssistant 持久化读写）
@@ -97,12 +90,9 @@ public:
     /// @param text 用户原始输入文本
     /// @param mode 路由模式 token："qa" / "modeling" / "auto"
     ///
-    /// 流程：
-    ///   1. AIIntentRouter::route() 分类
-    ///   2. QA  → RAGPipeline::query()
-    ///   3. Modeling → buildModelingSystemPrompt → DeepSeekProvider → LLMCommandBridge → execute
-    ///   4. Mixed → 先走 QA，额外提示可执行
-    ///   5. Uncertain → 提示用户澄清意图
+    /// 自动模式：AIIntentRouter::route() → 占位 Uncertain → AILLMClassifier 异步分类 → dispatchByIntent
+    /// 手动模式：AIIntentRouter::route() 同步返回 1.0 置信度 → dispatchByIntent
+    /// LLM 不可用/Uncertain → handleUncertainInput (3B 双 Pipeline 并发)
     void handleUserInput(const QString& text, const QString& mode);
 
 signals:
@@ -126,6 +116,16 @@ private slots:
     void onModelingProviderError(const QString& error);
 
 private:
+    // ---- 意图分发 ----
+    /// @brief 根据路由结果分发到 QA / Modeling / Mixed / Uncertain 链路
+    void dispatchByIntent(const RouterResult& route, const QString& text);
+
+    /// @brief 3B 双 Pipeline 并发入口（LLM 不确定或不可用时）
+    void handleUncertainInput(const QString& text);
+
+    /// @brief 3B 双 Pipeline 回调汇总，择优展示结果（Modeling 优先）
+    void tryResolveDualPipeline();
+
     // ---- 链路内部分发 ----
     /// @brief QA 链路：展示路由信息并调用 RAGPipeline
     void handleUserInput_QA(const RouterResult& route, const QString& text);
@@ -156,7 +156,8 @@ private:
     ConversationHistory                   m_history;         ///< 对话历史（短期记忆 + token 预算管理）
 
     // ---- 子模块 ----
-    std::unique_ptr<AIIntentRouter>       m_router;          ///< 意图路由器
+    std::unique_ptr<AIIntentRouter>       m_router;          ///< 意图路由器（手动模式兜底）
+    std::unique_ptr<AILLMClassifier>      m_llmClassifier;   ///< LLM 意图分类器
     std::unique_ptr<RAGPipeline>          m_ragPipeline;     ///< RAG 问答管线（内含自己的 DeepSeekProvider）
     std::unique_ptr<DeepSeekProvider>     m_modelingProvider;///< 建模链路专用 LLM Provider
     LLMCommandBridge                      m_bridge;          ///< JSON 命令桥（无状态）
@@ -173,12 +174,21 @@ private:
     ParsedCommand     m_pendingCmd;
 
     // ---- 状态 ----
-    bool m_routerReady  = false;  ///< Router 关键词数据是否已加载
+    bool m_routerReady  = false;  ///< LLM 分类器是否可用
     bool m_ragReady     = false;  ///< RAG 知识库是否已索引
     bool m_modelingReady = false; ///< 建模链路是否可用（doc + docView 均非空）
     QString m_lastUserText;       ///< 最近一次用户输入（调试用）
     QString m_lastMode;           ///< 最近一次模式（调试用）
-    IntentType m_lastResolvedIntent = IntentType::QA; ///< 最近一次成功分发的意图（用于 Uncertain 继承）
+    IntentType m_lastResolvedIntent = IntentType::QA; ///< 最近一次成功分发的意图
+
+    // ---- LLM 分类竞态保护 ----
+    int m_classifySeq = 0;  ///< LLM 分类请求序列号（防止乱序回调）
+
+    // ---- 3B 双 Pipeline 并发 ----
+    int m_dualPendingCount = 0;                       ///< 3B 待完成计数（2 → 0 时汇总）
+    std::optional<RAGAnswer> m_pendingQAResult;       ///< 3B QA 暂存结果
+    ParsedCommand m_pendingModelResult;               ///< 3B Modeling 暂存结果
+    bool m_inDualPipeline = false;                    ///< 是否正在 3B 双 Pipeline 模式
 };
 
 #endif // AIPIPELINE_H

@@ -62,9 +62,8 @@ void AIAssistant::ensureCreated(DmDocument* doc, GuiDocumentView* docView)
     const QString appDir = DMSYSTEM->getAppDir();
     const QString docsDir = appDir + "/ai";
     const QString readmePath = appDir + "/ai/README.md";
-    const QString keywordsPath = appDir + "/ai/intent_keywords.json";
 
-    m_pipeline = new AIPipeline(docsDir, readmePath, keywordsPath,
+    m_pipeline = new AIPipeline(docsDir, readmePath,
                                 doc, docView, this);
 
     // ---- 2. 加载最近会话 ----
@@ -134,12 +133,27 @@ void AIAssistant::onHistoryRequested()
     if (!m_store || !m_dialog)
         return;
 
-    saveCurrentSession();  // 先保存当前会话
-
     ConversationBrowser browser(m_store, m_dialog);
     connect(&browser, &ConversationBrowser::sessionSelected,
             this, &AIAssistant::onLoadSessionRequested);
+
+    // 监听删除：如果删的是当前会话，重置 session ID 防止后续 save 复活
+    connect(&browser, &ConversationBrowser::sessionDeleted,
+            this, [this](const QString& sessionId) {
+        if (sessionId == m_currentSessionId)
+        {
+            m_currentSessionId = QStringLiteral("conv_")
+                + QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss"));
+            m_pipeline->history().clear();
+            m_dialog->clearChatView();
+            m_unsavedMsgCount = 0;
+        }
+    });
+
     browser.exec();
+
+    // 在浏览器关闭后保存（如果当前会话还在，会被持久化；若已被删则用新 ID）
+    saveCurrentSession();
 }
 
 void AIAssistant::onLoadSessionRequested(const QString& sessionId)

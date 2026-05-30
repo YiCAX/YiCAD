@@ -51,12 +51,22 @@ DeepSeekProvider::~DeepSeekProvider() = default;
 
 void DeepSeekProvider::sendMessage(const QString& userMessage)
 {
-    // 委托到新重载，传空历史
+    // 委托到三参数重载，传空历史
     sendMessage(userMessage, QVector<MessageEntry>());
 }
 
 void DeepSeekProvider::sendMessage(const QString& userMessage,
                                    const QVector<MessageEntry>& historyMessages)
+{
+    // 委托到五参数重载，使用全局默认设置
+    sendMessage(userMessage, historyMessages, QString(), -1.0, 0);
+}
+
+void DeepSeekProvider::sendMessage(const QString& userMessage,
+                                   const QVector<MessageEntry>& historyMessages,
+                                   const QString& systemPrompt,
+                                   double temperature,
+                                   int maxTokens)
 {
     // ---- 1. 读取配置 ----
     LLMSettingsService* svc = LLMSettingsService::instance();
@@ -77,7 +87,7 @@ void DeepSeekProvider::sendMessage(const QString& userMessage,
     const QString model       = svc->model();
     const QString apiKey      = svc->apiKey();
     const int     timeoutSecs = svc->timeoutSecs();
-    const double  temperature = svc->temperature();
+    const double  effectiveTemperature = (temperature < 0.0) ? svc->temperature() : temperature;
 
     // ---- 3. 构建完整消息数组：历史 + 当前用户输入 ----
     QVector<MessageEntry> allMessages = historyMessages;
@@ -95,7 +105,11 @@ void DeepSeekProvider::sendMessage(const QString& userMessage,
     request.setTransferTimeout(timeoutSecs * 1000);  // Qt 5.15+
 #endif
 
-    const QByteArray body = buildRequestBody(model, allMessages, temperature);
+    // 如果传入了 systemPrompt 或 maxTokens > 0，使用完整参数覆盖的 buildRequestBody
+    const bool hasParamOverride = !systemPrompt.isEmpty() || maxTokens > 0;
+    const QByteArray body = hasParamOverride
+        ? buildRequestBody(model, allMessages, systemPrompt, effectiveTemperature, maxTokens)
+        : buildRequestBody(model, allMessages, effectiveTemperature);
 
     // ---- 5. 发起 POST ----
     QNetworkReply* reply = m_networkManager->post(request, body);
@@ -228,6 +242,46 @@ QByteArray DeepSeekProvider::buildRequestBody(const QString& model,
     root["messages"]    = messagesJson;
     root["temperature"] = temperature;
     root["stream"]      = false;
+
+    QJsonDocument doc(root);
+    return doc.toJson(QJsonDocument::Compact);
+}
+
+QByteArray DeepSeekProvider::buildRequestBody(const QString& model,
+                                              const QVector<MessageEntry>& messages,
+                                              const QString& systemPrompt,
+                                              double temperature,
+                                              int maxTokens) const
+{
+    QJsonArray messagesJson;
+
+    // 注入 system prompt（如果提供）
+    if (!systemPrompt.isEmpty())
+    {
+        QJsonObject sysMsg;
+        sysMsg["role"]    = QStringLiteral("system");
+        sysMsg["content"] = systemPrompt;
+        messagesJson.append(sysMsg);
+    }
+
+    for (const auto& msg : messages)
+    {
+        QJsonObject msgObj;
+        msgObj["role"]    = msg.role;
+        msgObj["content"] = msg.content;
+        messagesJson.append(msgObj);
+    }
+
+    QJsonObject root;
+    root["model"]       = model;
+    root["messages"]    = messagesJson;
+    root["temperature"] = temperature;
+    root["stream"]      = false;
+
+    if (maxTokens > 0)
+    {
+        root["max_tokens"] = maxTokens;
+    }
 
     QJsonDocument doc(root);
     return doc.toJson(QJsonDocument::Compact);

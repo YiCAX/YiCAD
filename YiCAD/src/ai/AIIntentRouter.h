@@ -15,26 +15,22 @@
  */
 
 /// @file AIIntentRouter.h
-/// @brief AI 意图路由器 —— 规则驱动的输入分类，分为问答、建模、混合或不确定
+/// @brief AI 意图路由器 —— 手动模式兜底 + 自动模式占位（实际分类由 AILLMClassifier 异步完成）
 ///
 /// 职责：
-///   - 基于关键词和规则的意图分类（首版，不依赖大模型）
-///   - 支持手动模式兜底：QA / Modeling / Auto
-///   - 混合输入返回"先说明，再确认是否执行"的中间态结果
-///   - 不触发 RAG 或建模执行，只返回路由结果
+///   - 手动模式（qa / modeling）同步返回 1.0 置信度，bypass LLM
+///   - 自动模式返回占位 Uncertain，由 AIPipeline 调用 AILLMClassifier 异步获取真实意图
+///   - 保留 IntentType 枚举和 RouterResult 结构体（与外部兼容）
 ///
-/// 关键词数据通过 loadKeywordsFromJson() 在启动时从外部 JSON 文件加载。
-/// 所有自然语言字符串均存放于该文件中。
+/// 关键词路由代码已完全移除，意图分类改为 LLM 驱动（参见 AILLMClassifier）。
 ///
 /// UI 发送的手动模式 token：
-///   - "auto"     → 规则分类（默认）
-///   - "qa"       → 强制问答
-///   - "modeling" → 强制建模
+///   - "auto"     → 返回 Uncertain 占位（AIPipeline 触发 LLM 分类）
+///   - "qa"       → 强制问答（1.0 置信度）
+///   - "modeling" → 强制建模（1.0 置信度）
 
 #ifndef AIINTENTROUTER_H
 #define AIINTENTROUTER_H
-
-#include "AIIntentRouterData.h"
 
 #include <QObject>
 #include <QString>
@@ -76,53 +72,18 @@ public:
     explicit AIIntentRouter(QObject* parent = nullptr);
     ~AIIntentRouter() override;
 
-    /// @brief 从 JSON 文件加载关键词数据
-    /// @return 成功返回 true。必须在 route() 之前调用，否则始终返回 Uncertain。
-    bool loadKeywordsFromJson(const QString& filePath);
-
-    /// @brief 关键词数据是否已成功加载
-    bool isReady() const;
-
     /// @brief 对用户输入进行意图分类
     /// @param input      用户原始文本
     /// @param manualMode 手动模式："auto" / "qa" / "modeling"（来自 UI 切换）
+    ///
+    /// 手动模式（qa / modeling）：同步返回 1.0 置信度。
+    /// 自动模式（auto）：返回占位 Uncertain，真实分类由 AILLMClassifier 异步回调送达。
     RouterResult route(const QString& input,
                        const QString& manualMode = QStringLiteral("auto")) const;
 
 private:
-    // ---- 匹配模式 ----
-    enum class MatchMode { StartsWith, EndsWith, Contains };
-
     // ---- 预处理 ----
     static QString preprocess(const QString& raw);
-
-    // ---- 评分 ----
-    float scoreQA(const QString& input) const;
-    float scoreModeling(const QString& input) const;
-    float scoreKeywordList(const QString& input,
-                           const std::vector<KeywordEntry>& keywords) const;
-
-    // ---- 模式匹配（数据驱动） ----
-    bool matchesAny(const QString& input,
-                    const std::vector<std::string>& markers,
-                    MatchMode mode) const;
-    bool matchesQuestionPattern(const QString& input) const;
-    bool containsEntityNoun(const QString& input) const;
-    bool isAskingAboutTopic(const QString& input) const;
-
-    // ---- 置信度映射 ----
-    static float scoreToConfidence(float targetScore, float otherScore);
-
-    // ---- 分类决策 ----
-    RouterResult classifyByRules(const QString& input) const;
-
-    // ---- 阈值常量 ----
-    static constexpr float kMinCategoryThreshold = 1.0f;
-    static constexpr float kMixedDualThreshold   = 1.0f;
-    static constexpr float kConfidenceScale      = 3.0f;
-
-    // ---- 数据 ----
-    IntentKeywords m_keywords;
 };
 
 #endif // AIINTENTROUTER_H

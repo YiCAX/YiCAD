@@ -19,6 +19,7 @@
 
 #include "AIPipeline.h"
 
+#include "AILLMClassifier.h"
 #include "AIIntentRouter.h"
 #include "AIPickSession.h"
 #include "ContextResolver.h"
@@ -31,8 +32,7 @@
 
 #include <QJsonArray>
 #include <QJsonObject>
-
-#include "QPointer"
+#include <QPointer>
 
 // ============================================================================
 // 构造 / 析构
@@ -40,12 +40,12 @@
 
 AIPipeline::AIPipeline(const QString& docsDir,
                        const QString& readmePath,
-                       const QString& keywordsJsonPath,
                        DmDocument* doc,
                        GuiDocumentView* docView,
                        QObject* parent)
     : QObject(parent)
     , m_router(new AIIntentRouter(this))
+    , m_llmClassifier(new AILLMClassifier(this))
     , m_ragPipeline(new RAGPipeline(this))
     , m_modelingProvider(new DeepSeekProvider(this))
     , m_bridge()
@@ -56,13 +56,25 @@ AIPipeline::AIPipeline(const QString& docsDir,
     , m_doc(doc)
     , m_docView(docView)
 {
-    // ---- 1. 初始化 Router（加载关键词 JSON） ----
-    m_routerReady = m_router->loadKeywordsFromJson(keywordsJsonPath);
+    // ---- 1. 初始化 LLM 分类器 ----
+    m_routerReady = m_llmClassifier->isAvailable();
     if (!m_routerReady)
     {
-        emit errorOccurred(tr("Error"),
-                           tr("Failed to load intent keywords from: %1").arg(keywordsJsonPath));
+        emit errorOccurred(tr("Warning"),
+                           tr("LLM classifier is not available (API Key not configured). "
+                              "Falling back to dual-pipeline mode."));
     }
+
+    // 连接分类失败信号（用于降级到 3B）
+    connect(m_llmClassifier.get(), &AILLMClassifier::classificationFailed,
+            this, [this](const QString& reason) {
+        Q_UNUSED(reason)
+        // 降级：如果当前没有在 3B 模式且有待处理的用户输入，走双 Pipeline
+        if (!m_inDualPipeline && !m_lastUserText.isEmpty())
+        {
+            handleUncertainInput(m_lastUserText);
+        }
+    });
 
     // ---- 2. 初始化 RAG（加载知识库） ----
     m_ragReady = m_ragPipeline->initialize(docsDir, readmePath);
@@ -118,22 +130,57 @@ void AIPipeline::handleUserInput(const QString& text, const QString& mode)
         return;
     }
 
-    // ---- Router 未就绪 ----
-    if (!m_routerReady)
-    {
-        emit errorOccurred(tr("Error"),
-                           tr("Intent router is not initialized. "
-                              "Please check intent_keywords.json."));
-        return;
-    }
-
     // ---- 0. 记录用户消息到对话历史 ----
     m_history.pushUser(text);
 
-    // ---- 1. 路由分类 ----
-    const RouterResult route = m_router->route(text, mode);
+    // ---- 1. 手动模式：同步路由（不变） ----
+    if (mode == QStringLiteral("qa") || mode == QStringLiteral("modeling"))
+    {
+        const RouterResult route = m_router->route(text, mode);
+        dispatchByIntent(route, text);
+        return;
+    }
 
-    // ---- 2. 分发 ----
+    // ---- 2. 自动模式：异步 LLM 路由 ----
+    // LLM 分类器不可用 → 直接走 3B 双 Pipeline
+    if (!m_routerReady)
+    {
+        handleUncertainInput(text);
+        return;
+    }
+
+    emit responseReady(tr("System"), tr("Analyzing intent..."));
+
+    // 递增请求序列号
+    const int seq = ++m_classifySeq;
+
+    // 提取最近 N 条用户消息作为上下文
+    const QStringList recentMsgs = m_history.recentUserMessages(2);
+
+    QPointer<AIPipeline> guard(this);
+    m_llmClassifier->classify(
+        text, recentMsgs,
+        [this, guard, seq, text](IntentType intent, float confidence) {
+            // 生命周期保护：如果 AIPipeline 已被析构，直接返回
+            if (!guard) return;
+            // 序列号保护：忽略过时的回调
+            if (seq != m_classifySeq) return;
+
+            // 构造 RouterResult
+            RouterResult route;
+            route.intent     = intent;
+            route.confidence = confidence;
+            dispatchByIntent(route, text);
+        });
+}
+
+// ============================================================================
+// 意图分发
+// ============================================================================
+
+void AIPipeline::dispatchByIntent(const RouterResult& route,
+                                   const QString& text)
+{
     switch (route.intent)
     {
     case IntentType::QA:
@@ -147,63 +194,88 @@ void AIPipeline::handleUserInput(const QString& text, const QString& mode)
         break;
 
     case IntentType::Mixed:
-        // 混合意图：先走 QA 回答，额外提示可执行
         emit responseReady(tr("System"),
-                           tr("Detected mixed intent (%1). "
-                              "Providing help answer first. "
-                              "Switch to Modeling mode if you want to execute.")
-                               .arg(route.reasoning));
+                           tr("Detected mixed intent. Providing help answer first."));
         m_lastResolvedIntent = IntentType::QA;
         handleUserInput_QA(route, text);
         break;
 
     case IntentType::Uncertain:
     default:
-    {
-        // 多轮对话上下文继承：如果有关键词无法匹配但有历史，沿用上一轮意图
-        const auto& historyMsgs = m_history.allMessages();
-        const bool hasHistory = historyMsgs.size() >= 2;  // 至少有一轮对话
-
-        if (hasHistory)
-        {
-            if (m_lastResolvedIntent == IntentType::Modeling && m_modelingReady)
-            {
-                emit responseReady(tr("System"),
-                                   tr("Continuing in Modeling mode based on conversation context."));
-                m_lastResolvedIntent = IntentType::Modeling;
-                handleUserInput_Modeling(route, text);
-            }
-            else if (m_lastResolvedIntent == IntentType::QA && m_ragReady)
-            {
-                emit responseReady(tr("System"),
-                                   tr("Continuing in QA mode based on conversation context."));
-                m_lastResolvedIntent = IntentType::QA;
-                handleUserInput_QA(route, text);
-            }
-            else
-            {
-                // 有历史但对应链路不可用 → 降级提示
-                emit responseReady(tr("System"),
-                                   tr("Unable to determine your intent. %1\n\n"
-                                      "Try:\n"
-                                      "  • QA mode for questions like \"how to trim\"\n"
-                                      "  • Modeling mode for commands like \"draw a circle\"")
-                                       .arg(route.suggestedAction));
-            }
-        }
-        else
-        {
-            // 首轮就无法判定 → 原样提示
-            emit responseReady(tr("System"),
-                               tr("Unable to determine your intent. %1\n\n"
-                                  "Try:\n"
-                                  "  • QA mode for questions like \"how to trim\"\n"
-                                  "  • Modeling mode for commands like \"draw a circle\"")
-                                   .arg(route.suggestedAction));
-        }
+        // LLM 也不确定 → 走 3B 双 Pipeline 并发
+        handleUncertainInput(text);
         break;
     }
+}
+
+void AIPipeline::handleUncertainInput(const QString& text)
+{
+    emit responseReady(tr("System"), tr("Analyzing with dual pipelines..."));
+
+    m_inDualPipeline = true;
+    m_dualPendingCount = 2;
+    m_pendingQAResult.reset();
+    m_pendingModelResult = ParsedCommand{};
+
+    // 并发启动 QA
+    if (m_ragReady)
+    {
+        m_ragPipeline->query(text);
     }
+    else
+    {
+        // RAG 不可用，直接标记 QA 失败
+        m_dualPendingCount--;
+    }
+
+    // 并发启动 Modeling
+    if (m_modelingReady)
+    {
+        const QString sysPrompt = buildModelingSystemPrompt();
+        m_modelingProvider->sendMessage(text, m_history.toMessages(sysPrompt));
+    }
+    else
+    {
+        // Modeling 不可用，直接标记失败
+        m_dualPendingCount--;
+    }
+
+    // 如果两个都不行，直接输出错误
+    if (m_dualPendingCount <= 0)
+    {
+        m_inDualPipeline = false;
+        emit errorOccurred(tr("Error"),
+                           tr("Unable to process your request. "
+                              "Neither QA nor Modeling pipeline is available. "
+                              "Please open a document or check your configuration."));
+    }
+}
+
+void AIPipeline::tryResolveDualPipeline()
+{
+    m_inDualPipeline = false;
+
+    const bool qaOk   = m_pendingQAResult.has_value();
+    const bool modelOk = m_pendingModelResult.ok;
+
+    if (modelOk)
+    {
+        // Modeling 优先：直接执行
+        executeParsedCommand(m_pendingModelResult);
+        return;
+    }
+
+    if (qaOk)
+    {
+        // QA 降级
+        onRAGAnswer(m_pendingQAResult.value());
+        return;
+    }
+
+    // 都失败
+    emit errorOccurred(tr("Error"),
+                       tr("Unable to process your request. "
+                          "Please try rephrasing or switch to manual mode."));
 }
 
 // ============================================================================
@@ -244,6 +316,18 @@ void AIPipeline::handleUserInput_QA(const RouterResult& route, const QString& te
 
 void AIPipeline::onRAGAnswer(const RAGAnswer& answer)
 {
+    // 3B 双 Pipeline 模式：暂存结果，等待 Modeling 也完成
+    if (m_inDualPipeline)
+    {
+        m_pendingQAResult = answer;
+        m_dualPendingCount--;
+        if (m_dualPendingCount <= 0)
+        {
+            tryResolveDualPipeline();
+        }
+        return;
+    }
+
     // 记录 assistant 回复到对话历史
     m_history.pushAssistant(answer.answer);
 
@@ -309,6 +393,18 @@ void AIPipeline::onModelingProviderResponse(const QString& responseText)
 {
     // 1. 解析 LLM 返回的 JSON
     const ParsedCommand cmd = m_bridge.parse(responseText);
+
+    // 3B 双 Pipeline 模式：暂存解析结果，不执行，等待 QA 也完成
+    if (m_inDualPipeline)
+    {
+        m_pendingModelResult = cmd;
+        m_dualPendingCount--;
+        if (m_dualPendingCount <= 0)
+        {
+            tryResolveDualPipeline();
+        }
+        return;
+    }
 
     if (!cmd.ok)
     {

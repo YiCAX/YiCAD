@@ -111,6 +111,23 @@ const QVector<MessageEntry>& ConversationHistory::allMessages() const
     return m_messages;
 }
 
+QStringList ConversationHistory::recentUserMessages(int n) const
+{
+    QStringList result;
+    result.reserve(n);
+
+    // 从最新到最旧遍历 m_messages，收集 role=="user" 的消息
+    for (int i = m_messages.size() - 1; i >= 0 && result.size() < n; --i)
+    {
+        if (m_messages[i].role == QStringLiteral("user"))
+        {
+            result.append(m_messages[i].content);
+        }
+    }
+
+    return result;
+}
+
 void ConversationHistory::loadFrom(const QVector<MessageEntry>& messages)
 {
     m_messages.clear();
