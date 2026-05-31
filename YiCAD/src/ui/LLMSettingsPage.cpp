@@ -28,7 +28,9 @@
 #include <QMessageBox>
 #include <QSpinBox>
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QPushButton>
+#include <QStyle>
 
 LLMSettingsPage::LLMSettingsPage(QWidget* parent)
     : QDialog(parent)
@@ -92,13 +94,36 @@ void LLMSettingsPage::setupUi()
     m_temperatureSpin->setToolTip(tr("Generation randomness: 0=deterministic, 2=maximum randomness"));
     formLayout->addRow(tr("Temperature:"), m_temperatureSpin);
 
+    // API Key 行独立于 QFormLayout，以便右侧放置重设按钮
     m_apiKeyEdit = new QLineEdit(this);
     m_apiKeyEdit->setEchoMode(QLineEdit::Password);
     m_apiKeyEdit->setPlaceholderText(tr("sk-..."));
     m_apiKeyEdit->setToolTip(tr("API Key is stored encrypted and will not be saved in plain text"));
-    formLayout->addRow(tr("API Key:"), m_apiKeyEdit);
 
     mainLayout->addLayout(formLayout);
+
+    // ---- API Key 行（含重设按钮）----
+    auto* apiKeyRow = new QHBoxLayout();
+    apiKeyRow->setContentsMargins(0, 0, 0, 0);
+    apiKeyRow->setSpacing(4);
+
+    auto* apiKeyLabel = new QLabel(tr("API Key:"), this);
+    // 对齐 QFormLayout 的 label 宽度（近似）
+    apiKeyLabel->setMinimumWidth(100);
+    apiKeyLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+
+    apiKeyRow->addWidget(apiKeyLabel);
+    apiKeyRow->addWidget(m_apiKeyEdit, 1);
+
+    auto* resetBtn = new QPushButton(this);
+    resetBtn->setIcon(style()->standardIcon(QStyle::SP_DialogResetButton));
+    resetBtn->setToolTip(tr("Clear saved API Key"));
+    resetBtn->setFixedSize(28, 28);
+    resetBtn->setFlat(true);
+    connect(resetBtn, &QPushButton::clicked, this, &LLMSettingsPage::slotResetKey);
+    apiKeyRow->addWidget(resetBtn);
+
+    mainLayout->addLayout(apiKeyRow);
 
     // ---- 底部提示 ----
     auto* noteLabel = new QLabel(tr("Note: API Key uses XOR obfuscation (temporary).\n"
@@ -161,4 +186,15 @@ void LLMSettingsPage::onSave()
     }
 
     accept();
+}
+
+void LLMSettingsPage::slotResetKey()
+{
+    LLMSettingsService* svc = LLMSettingsService::instance();
+    if (svc && svc->isInitialized())
+    {
+        svc->setApiKey(QString());  // 空字符串 = 删除密钥
+    }
+    m_apiKeyEdit->clear();
+    m_apiKeyEdit->setPlaceholderText(tr("sk-..."));
 }

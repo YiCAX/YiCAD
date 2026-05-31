@@ -40,6 +40,7 @@ public:
 
 private slots:
     void onSave();
+    void slotResetKey();
 
 private:
     void loadSettings();
