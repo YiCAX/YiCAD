@@ -634,11 +634,22 @@ void DeepSeekProvider::processSseChunk(const QByteArray& chunk)
             extractCompleteJson();
 
             // 发射完整累积内容（供只监听 responseReceived 的消费者，如分类器）
-            // 若所有内容已被 commandReady 提取，至少发射空串标记流结束
             const QString finalContent = m_rawContent.trimmed();
             if (!finalContent.isEmpty())
             {
                 emit responseReceived(finalContent);
+            }
+            else if (!m_reasoningBuffer.trimmed().isEmpty())
+            {
+                // 推理模型（deepseek-v4-pro）可能在 content 为空的情况下
+                // 把所有 token 花在了 reasoning_content 上（如 max_tokens 太小）。
+                // 此时回退到 reasoning buffer，避免消费者（RAGPipeline 路由等）永久挂起。
+                emit responseReceived(m_reasoningBuffer.trimmed());
+            }
+            else
+            {
+                // 完全空响应：发射空串标记流结束，避免消费者永久等待
+                emit responseReceived(QString());
             }
             return;
         }

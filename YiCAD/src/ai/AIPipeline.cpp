@@ -258,31 +258,8 @@ void AIPipeline::onRAGAnswer(const RAGAnswer& answer)
     // 记录 assistant 回复到对话历史
     m_history.pushAssistant(answer.answer);
 
-    // 组装展示文本：主回答 + 引用
-    QString display = answer.answer;
-
-    if (!answer.citations.isEmpty())
-    {
-        display += QStringLiteral("\n\n---\n");
-        display += tr("References:");
-        display += QStringLiteral("\n");
-        for (int i = 0; i < answer.citations.size(); ++i)
-        {
-            const Citation& c = answer.citations[i];
-            display += QStringLiteral("  [%1] %2 (%3)\n")
-                           .arg(i + 1)
-                           .arg(c.title.isEmpty() ? c.docPath : c.title)
-                           .arg(c.chunkId);
-        }
-    }
-
-    if (answer.confidence > 0.0f)
-    {
-        display += QStringLiteral("\n");
-        display += tr("Confidence: %1%").arg(static_cast<int>(answer.confidence * 100));
-    }
-
-    emit responseReady(tr("AI"), display);
+    // 直接展示 LLM 回答（LLM 已在正文中用 Sources: 格式内联了引用）
+    emit responseReady(tr("AI"), answer.answer);
 }
 
 void AIPipeline::onRAGError(const QString& error)

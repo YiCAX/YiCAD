@@ -19,13 +19,15 @@
 
 #include "RAGPipeline.h"
 #include "ChunkSplitter.h"
+#include "ConversationHistory.h"
 #include "DeepSeekProvider.h"
-#include "Retriever.h"
 
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
+#include <QMap>
+#include <QSet>
 
 // ============================================================================
 // 构造 / 析构
@@ -34,8 +36,8 @@
 RAGPipeline::RAGPipeline(QObject* parent)
     : QObject(parent)
     , m_provider(new DeepSeekProvider(this))
-    , m_retriever(new KeywordRetriever)
     , m_ready(false)
+    , m_isRouting(false)
 {
     // 转发 provider 信号
     connect(m_provider, &DeepSeekProvider::responseReceived,
@@ -75,8 +77,7 @@ bool RAGPipeline::initialize(const QString& docsDir, const QString& readmePath)
         return false;
     }
 
-    // 3. 建立检索索引
-    m_retriever->index(chunks);
+    // 存储全部 chunks（LLM 路由后再筛选）
     m_allChunks = chunks;
     m_ready = true;
 
@@ -85,12 +86,12 @@ bool RAGPipeline::initialize(const QString& docsDir, const QString& readmePath)
 
 bool RAGPipeline::isReady() const
 {
-    return m_ready && m_retriever && m_retriever->isReady();
+    return m_ready && !m_allChunks.isEmpty();
 }
 
 int RAGPipeline::chunkCount() const
 {
-    return m_retriever ? m_retriever->chunkCount() : 0;
+    return m_allChunks.size();
 }
 
 // ============================================================================
@@ -112,19 +113,10 @@ void RAGPipeline::query(const QString& question)
         return;
     }
 
-    // 1. 检索 Top-K 相关 chunk
-    const int topK = 5;
-    QVector<Chunk> contextChunks = m_retriever->retrieve(question, topK);
-
-    // 保存以便响应时回填引用
     m_lastQuestion = question;
-    m_lastContext  = contextChunks;
 
-    // 2. 构建 prompt
-    const QString prompt = buildPrompt(question, contextChunks);
-
-    // 3. 调用模型（异步，结果通过 onModelResponse 返回）
-    m_provider->sendMessage(prompt);
+    // Phase 1: LLM 文档路由 → 选中文件 → Phase 2 回答
+    startRouting(question);
 }
 
 // ============================================================================
@@ -133,9 +125,18 @@ void RAGPipeline::query(const QString& question)
 
 void RAGPipeline::onModelResponse(const QString& responseText)
 {
+    // Phase 1 路由响应 → 过滤 chunks 并进入 Phase 2
+    if (m_isRouting)
+    {
+        m_isRouting = false;
+        onRoutingResponse(responseText);
+        return;
+    }
+
+    // Phase 2 回答生成 —— 正常处理
     RAGAnswer answer = parseResponse(responseText);
 
-    // 如果模型未返回引用，用检索到的 chunk 作为 fallback citations
+    // 如果模型未返回引用，用 Phase 2 使用的 context 作为 fallback citations
     if (answer.citations.isEmpty() && !m_lastContext.isEmpty())
     {
         for (const Chunk& chunk : m_lastContext)
@@ -149,7 +150,129 @@ void RAGPipeline::onModelResponse(const QString& responseText)
 
 void RAGPipeline::onModelError(const QString& errorMessage)
 {
+    // 路由阶段出错 → fallback 到全量 chunks 直接回答
+    if (m_isRouting)
+    {
+        m_isRouting = false;
+        // 用全量 chunks 作为上下文进入 Phase 2
+        m_lastContext = m_allChunks;
+        const QString prompt = buildPrompt(m_pendingQuestion, m_allChunks);
+        m_provider->sendMessage(prompt);
+        return;
+    }
+
     emit errorOccurred(errorMessage);
+}
+
+// ============================================================================
+// 私有方法 —— 两阶段 LLM 路由
+// ============================================================================
+
+QString RAGPipeline::buildDocumentIndex() const
+{
+    // 从 m_allChunks 提取每个唯一 docPath 的标题，构建紧凑索引
+    QMap<QString, QString> index;  // docPath → title
+    for (const Chunk& c : m_allChunks)
+    {
+        if (!index.contains(c.docPath))
+        {
+            index[c.docPath] = c.title;
+        }
+    }
+
+    QString text;
+    text += QStringLiteral("Document Index:\n");
+    for (auto it = index.constBegin(); it != index.constEnd(); ++it)
+    {
+        text += QStringLiteral("  %1 | %2\n").arg(it.key()).arg(it.value());
+    }
+
+    return text;
+}
+
+void RAGPipeline::startRouting(const QString& question)
+{
+    m_pendingQuestion = question;
+    m_isRouting = true;
+
+    const QString indexText = buildDocumentIndex();
+
+    // 路由 system prompt：纯指令，不随 UI 语言切换
+    const QString routingSystem = QStringLiteral(
+        "You are a document router for a CAD software help system.\n"
+        "Given a user question and a document index, select the document files "
+        "that are MOST LIKELY to contain the answer.\n\n"
+        "Rules:\n"
+        "1. Return ONLY a JSON array of file names, nothing else.\n"
+        "2. Select 1-3 files maximum. Be conservative — only include files "
+        "that you are confident contain relevant information.\n"
+        "3. If no file seems relevant, return an empty array [].\n"
+        "4. File names MUST exactly match those in the index.\n\n"
+        "Example: [\"02-drawing-curves.md\", \"14-command-reference.md\"]");
+
+    const QString routingPrompt = indexText
+        + QStringLiteral("\n[User Question]\n%1\n\n"
+                         "Return the JSON array of relevant file names:").arg(question);
+
+    // 空历史，temperature=0，max_tokens=512（需为推理模型留足 reasoning 空间）
+    m_provider->sendMessage(routingPrompt, QVector<MessageEntry>(),
+                            routingSystem, 0.0, 512);
+}
+
+void RAGPipeline::onRoutingResponse(const QString& responseText)
+{
+    // 解析 LLM 返回的 JSON 数组
+    QStringList selectedFiles;
+    const QString trimmed = responseText.trimmed();
+
+    // 提取 [...] JSON 数组
+    int start = trimmed.indexOf('[');
+    int end = trimmed.lastIndexOf(']');
+    if (start >= 0 && end > start)
+    {
+        const QString jsonArray = trimmed.mid(start, end - start + 1);
+        QJsonParseError parseError;
+        QJsonDocument doc = QJsonDocument::fromJson(jsonArray.toUtf8(), &parseError);
+        if (parseError.error == QJsonParseError::NoError && doc.isArray())
+        {
+            const QJsonArray arr = doc.array();
+            for (const QJsonValue& val : arr)
+            {
+                if (val.isString())
+                {
+                    selectedFiles.append(val.toString());
+                }
+            }
+        }
+    }
+
+    // 过滤 m_allChunks：只保留选中文件中的 chunks
+    QVector<Chunk> filteredChunks;
+    if (!selectedFiles.isEmpty())
+    {
+        // 用 set 加速查找
+        const QSet<QString> fileSet(selectedFiles.begin(), selectedFiles.end());
+        for (const Chunk& c : m_allChunks)
+        {
+            if (fileSet.contains(c.docPath))
+            {
+                filteredChunks.append(c);
+            }
+        }
+    }
+
+    // 兜底：路由未选中任何文件或过滤后为空 → 使用全量 chunks
+    if (filteredChunks.isEmpty())
+    {
+        filteredChunks = m_allChunks;
+    }
+
+    // 保存用于回答阶段回填引用
+    m_lastContext = filteredChunks;
+
+    // Phase 2: 回答生成
+    const QString prompt = buildPrompt(m_pendingQuestion, filteredChunks);
+    m_provider->sendMessage(prompt);
 }
 
 // ============================================================================

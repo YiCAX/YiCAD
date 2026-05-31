@@ -15,12 +15,14 @@
  */
 
 /// @file RAGPipeline.h
-/// @brief RAG 问答管线 —— 编排检索、提示词拼装、模型调用与结果解析
+/// @brief RAG 问答管线 —— 两阶段 LLM 路由 + 回答
 ///
 /// 职责：
-///   - 持有 ChunkSplitter + IRetriever + DeepSeekProvider
-///   - initialize() 加载知识源并建立索引
-///   - query() 执行完整 RAG 流程：检索 → 拼 prompt → 调模型 → 解析引用
+///   - 持有 ChunkSplitter + DeepSeekProvider
+///   - initialize() 加载知识源并切分为 chunks
+///   - query() 执行两阶段流程：
+///       1. LLM 文档路由：根据问题 + 文档索引选择相关文件
+///       2. LLM 回答生成：仅加载选中文件的 chunks，拼 prompt → 调模型 → 解析引用
 ///
 /// 使用方式：
 ///   @code
@@ -35,7 +37,7 @@
 ///
 /// 说明：
 ///   - 首版不支持多轮对话，每次 query() 独立
-///   - 首版检索器为 KeywordRetriever，后续可替换为向量检索
+///   - 路由失败自动 fallback 到全量 chunks
 
 #ifndef RAGPIPELINE_H
 #define RAGPIPELINE_H
@@ -48,7 +50,6 @@
 #include <memory>
 
 class DeepSeekProvider;
-class IRetriever;
 
 class RAGPipeline : public QObject
 {
@@ -110,12 +111,24 @@ private:
     /// @brief 从 chunk 构建 Citation
     static Citation chunkToCitation(const Chunk& chunk);
 
-    DeepSeekProvider*          m_provider;   ///< 模型调用（不持有）
-    std::unique_ptr<IRetriever> m_retriever;  ///< 检索器
-    QVector<Chunk>             m_allChunks;   ///< 全部 chunk（调试用）
-    QString                    m_lastQuestion;///< 最近一次问题
-    QVector<Chunk>             m_lastContext; ///< 最近一次检索到的上下文
-    bool                       m_ready;       ///< 是否已初始化
+    // ---- 两阶段 LLM 路由 ----
+
+    /// @brief 构建文档索引文本（文件名 → 标题），供路由 LLM 使用
+    QString buildDocumentIndex() const;
+
+    /// @brief 发起 Phase 1 —— LLM 文档路由请求
+    void startRouting(const QString& question);
+
+    /// @brief 处理 Phase 1 路由响应，过滤 chunks 并进入 Phase 2 回答
+    void onRoutingResponse(const QString& responseText);
+
+    DeepSeekProvider*  m_provider;       ///< 模型调用（不持有）
+    QVector<Chunk>     m_allChunks;      ///< 全部知识库 chunk
+    QString            m_lastQuestion;   ///< 最近一次问题
+    QVector<Chunk>     m_lastContext;    ///< 最近一次使用的上下文（用于回填引用）
+    QString            m_pendingQuestion;///< 路由阶段暂存的问题（跨 Phase 1→2）
+    bool               m_ready;          ///< 是否已初始化
+    bool               m_isRouting;      ///< 当前是否处于路由阶段（区分 Phase 1 / Phase 2 响应）
 };
 
 #endif // RAGPIPELINE_H
