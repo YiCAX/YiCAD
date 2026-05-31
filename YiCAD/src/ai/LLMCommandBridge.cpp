@@ -46,6 +46,7 @@ constexpr IntentEntry kIntentTable[] = {
     { "draw_spline",         CommandIntent::DrawSpline      },
     { "draw_polyline",       CommandIntent::DrawPolyline    },
     { "draw_text",           CommandIntent::DrawText        },
+    { "draw_compound",       CommandIntent::DrawCompound    },
 
     // ---- 标注 ----
     { "dimension",           CommandIntent::Dimension       },
@@ -269,6 +270,44 @@ ParsedCommand LLMCommandBridge::buildFromJson(const QJsonObject& obj,
                                      "executable.").arg(intentStr);
         // 未知 intent 不做进一步校验，直接返回
         return cmd;
+    }
+
+    // ---- 3a2. steps 字段（仅 draw_compound） ----
+    if (cmd.intent == CommandIntent::DrawCompound
+        && obj.contains(QStringLiteral("steps")))
+    {
+        const QJsonValue stepsVal = obj.value(QStringLiteral("steps"));
+        if (stepsVal.isArray())
+        {
+            const QJsonArray arr = stepsVal.toArray();
+            for (const auto& elem : arr)
+            {
+                if (!elem.isObject())
+                    continue;
+
+                const QJsonObject stepObj = elem.toObject();
+                if (!stepObj.contains(QStringLiteral("intent")))
+                    continue;
+
+                const QJsonValue stepIntentVal = stepObj.value(QStringLiteral("intent"));
+                if (!stepIntentVal.isString())
+                    continue;
+
+                const CommandIntent stepIntent =
+                    intentFromString(stepIntentVal.toString().trimmed());
+
+                // 仅接受已知的绘制类 intent（防止递归嵌套 draw_compound）
+                if (stepIntent == CommandIntent::Unknown
+                    || stepIntent == CommandIntent::DrawCompound)
+                    continue;
+
+                CommandStep step;
+                step.intent = stepIntent;
+                step.params = stepObj.value(QStringLiteral("params")).toObject();
+                cmd.steps.append(step);
+            }
+        }
+        // steps 缺失或非数组：不报错，由下游 executeCompound() 处理空 steps
     }
 
     // ---- 3b. selection 字段 ----

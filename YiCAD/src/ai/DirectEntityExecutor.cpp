@@ -80,6 +80,83 @@ ExecutorResult DirectEntityExecutor::execute(const ParsedCommand& cmd)
 }
 
 // ============================================================================
+// 复合绘制命令
+// ============================================================================
+
+ExecutorResult DirectEntityExecutor::executeCompound(const ParsedCommand& cmd)
+{
+    ExecutorResult result;
+
+    if (cmd.steps.isEmpty()) {
+        result.success      = false;
+        result.errorMessage = tr(
+            "DirectEntityExecutor::draw_compound: steps array is empty.");
+        return result;
+    }
+
+    // 所有步骤在一个 Transaction 内原子执行
+    Transaction t(tr("Create Compound").toStdString(), m_doc);
+    t.start();
+
+    int i = 0;
+    for (const CommandStep& step : cmd.steps)
+    {
+        ++i;
+
+        DmEntity* entity = nullptr;
+        QString   stepError;
+
+        switch (step.intent)
+        {
+        case CommandIntent::DrawPoint:
+            entity = createPointEntity(step.params, stepError);
+            break;
+        case CommandIntent::DrawLine:
+            entity = createLineEntity(step.params, stepError);
+            break;
+        case CommandIntent::DrawCircle:
+            entity = createCircleEntity(step.params, stepError);
+            break;
+        case CommandIntent::DrawRectangle:
+            entity = createRectangleEntity(step.params, stepError);
+            break;
+        case CommandIntent::DrawEllipse:
+            entity = createEllipseEntity(step.params, stepError);
+            break;
+        default:
+            t.rollback();
+            result.success      = false;
+            result.errorMessage = tr(
+                "draw_compound step %1: unsupported intent '%2'")
+                    .arg(i).arg(intentToString(step.intent));
+            return result;
+        }
+
+        if (!entity) {
+            t.rollback();
+            result.success      = false;
+            result.errorMessage = tr(
+                "draw_compound step %1: failed to create entity -- %2")
+                    .arg(i).arg(stepError);
+            return result;
+        }
+
+        entity->setDocument(m_doc);
+        m_doc->getEntityTable()->add(entity);
+
+        EntityCreateResult ecr;
+        ecr.entityId   = entity->getId();
+        ecr.entityType = entityTypeName(step.intent);
+        result.createdEntities.append(ecr);
+    }
+
+    t.commit();
+
+    result.success = true;
+    return result;
+}
+
+// ============================================================================
 // 各 intent 实现
 // ============================================================================
 
@@ -87,16 +164,14 @@ ExecutorResult DirectEntityExecutor::executeDrawPoint(const ParsedCommand& cmd)
 {
     ExecutorResult result;
 
-    DmVector pos;
     QString err;
-    if (!extractPoint(cmd.params, QStringLiteral("position"), pos, err)) {
+    DmPoint* entity = createPointEntity(cmd.params, err);
+    if (!entity) {
         result.success      = false;
         result.errorMessage = tr("DirectEntityExecutor::draw_point -- %1").arg(err);
         return result;
     }
 
-    PointData data(pos);
-    DmPoint* entity = new DmPoint(nullptr, data);
     finalizeEntity(entity, tr("Create Point").toStdString(), QStringLiteral("DmPoint"), result);
     return result;
 }
@@ -105,21 +180,14 @@ ExecutorResult DirectEntityExecutor::executeDrawLine(const ParsedCommand& cmd)
 {
     ExecutorResult result;
 
-    DmVector start, end;
     QString err;
-    if (!extractPoint(cmd.params, QStringLiteral("start"), start, err)) {
-        result.success      = false;
-        result.errorMessage = tr("DirectEntityExecutor::draw_line -- %1").arg(err);
-        return result;
-    }
-    if (!extractPoint(cmd.params, QStringLiteral("end"), end, err)) {
+    DmLine* entity = createLineEntity(cmd.params, err);
+    if (!entity) {
         result.success      = false;
         result.errorMessage = tr("DirectEntityExecutor::draw_line -- %1").arg(err);
         return result;
     }
 
-    LineData data(start, end);
-    DmLine* entity = new DmLine(nullptr, data);
     finalizeEntity(entity, tr("Create Line").toStdString(), QStringLiteral("DmLine"), result);
     return result;
 }
@@ -128,23 +196,14 @@ ExecutorResult DirectEntityExecutor::executeDrawCircle(const ParsedCommand& cmd)
 {
     ExecutorResult result;
 
-    DmVector center;
-    double   radius = 0.0;
-    QString  err;
-
-    if (!extractPoint(cmd.params, QStringLiteral("center"), center, err)) {
-        result.success      = false;
-        result.errorMessage = tr("DirectEntityExecutor::draw_circle -- %1").arg(err);
-        return result;
-    }
-    if (!extractDouble(cmd.params, QStringLiteral("radius"), radius, err)) {
+    QString err;
+    DmCircle* entity = createCircleEntity(cmd.params, err);
+    if (!entity) {
         result.success      = false;
         result.errorMessage = tr("DirectEntityExecutor::draw_circle -- %1").arg(err);
         return result;
     }
 
-    CircleData data(center, radius);
-    DmCircle* entity = new DmCircle(nullptr, data);
     finalizeEntity(entity, tr("Create Circle").toStdString(), QStringLiteral("DmCircle"), result);
     return result;
 }
@@ -153,35 +212,14 @@ ExecutorResult DirectEntityExecutor::executeDrawRectangle(const ParsedCommand& c
 {
     ExecutorResult result;
 
-    DmVector corner1, corner2;
-    QString  err;
-    if (!extractPoint(cmd.params, QStringLiteral("corner1"), corner1, err)) {
-        result.success      = false;
-        result.errorMessage = tr("DirectEntityExecutor::draw_rectangle -- %1").arg(err);
-        return result;
-    }
-    if (!extractPoint(cmd.params, QStringLiteral("corner2"), corner2, err)) {
+    QString err;
+    DmPolyline* entity = createRectangleEntity(cmd.params, err);
+    if (!entity) {
         result.success      = false;
         result.errorMessage = tr("DirectEntityExecutor::draw_rectangle -- %1").arg(err);
         return result;
     }
 
-    // 用 corner1/corner2 推导四个角点（轴对齐矩形）
-    // p1 = corner1
-    // p2 = (corner2.x, corner1.y)
-    // p3 = corner2
-    // p4 = (corner1.x, corner2.y)
-    DmVector p1(corner1);
-    DmVector p2(corner2.x, corner1.y);
-    DmVector p3(corner2);
-    DmVector p4(corner1.x, corner2.y);
-
-    std::vector<DmVector> pts{ p1, p2, p3, p4 };
-    std::vector<double>   bulges(4, 0.0);
-    std::vector<double>   weights(8, 0.0);  // 每个顶点 2 个权重
-
-    PolylineData polyData(pts, bulges, weights, /*isClosed=*/true);
-    DmPolyline* entity = new DmPolyline(nullptr, polyData);
     finalizeEntity(entity, tr("Create Rectangle").toStdString(), QStringLiteral("DmPolyline"), result);
     return result;
 }
@@ -190,30 +228,94 @@ ExecutorResult DirectEntityExecutor::executeDrawEllipse(const ParsedCommand& cmd
 {
     ExecutorResult result;
 
-    DmVector center;
-    double   majorRadius = 0.0;
-    double   minorRadius = 0.0;
-    double   angle       = 0.0;  // 长轴与 X 轴夹角（度）
-    QString  err;
+    QString err;
+    DmEllipse* entity = createEllipseEntity(cmd.params, err);
+    if (!entity) {
+        result.success      = false;
+        result.errorMessage = tr("DirectEntityExecutor::draw_ellipse -- %1").arg(err);
+        return result;
+    }
 
-    if (!extractPoint(cmd.params, QStringLiteral("center"), center, err)) {
-        result.success      = false;
-        result.errorMessage = tr("DirectEntityExecutor::draw_ellipse -- %1").arg(err);
-        return result;
-    }
-    if (!extractDouble(cmd.params, QStringLiteral("major_radius"), majorRadius, err)) {
-        result.success      = false;
-        result.errorMessage = tr("DirectEntityExecutor::draw_ellipse -- %1").arg(err);
-        return result;
-    }
-    if (!extractDouble(cmd.params, QStringLiteral("minor_radius"), minorRadius, err)) {
-        result.success      = false;
-        result.errorMessage = tr("DirectEntityExecutor::draw_ellipse -- %1").arg(err);
-        return result;
-    }
+    finalizeEntity(entity, tr("Create Ellipse").toStdString(), QStringLiteral("DmEllipse"), result);
+    return result;
+}
+
+// ============================================================================
+// 图元创建（纯工厂方法，不含 Transaction 管理）
+// ============================================================================
+
+DmPoint* DirectEntityExecutor::createPointEntity(const QJsonObject& params, QString& errorOut)
+{
+    DmVector pos;
+    if (!extractPoint(params, QStringLiteral("position"), pos, errorOut))
+        return nullptr;
+
+    PointData data(pos);
+    return new DmPoint(nullptr, data);
+}
+
+DmLine* DirectEntityExecutor::createLineEntity(const QJsonObject& params, QString& errorOut)
+{
+    DmVector start, end;
+    if (!extractPoint(params, QStringLiteral("start"), start, errorOut))
+        return nullptr;
+    if (!extractPoint(params, QStringLiteral("end"), end, errorOut))
+        return nullptr;
+
+    LineData data(start, end);
+    return new DmLine(nullptr, data);
+}
+
+DmCircle* DirectEntityExecutor::createCircleEntity(const QJsonObject& params, QString& errorOut)
+{
+    DmVector center;
+    double  radius = 0.0;
+    if (!extractPoint(params, QStringLiteral("center"), center, errorOut))
+        return nullptr;
+    if (!extractDouble(params, QStringLiteral("radius"), radius, errorOut))
+        return nullptr;
+
+    CircleData data(center, radius);
+    return new DmCircle(nullptr, data);
+}
+
+DmPolyline* DirectEntityExecutor::createRectangleEntity(const QJsonObject& params, QString& errorOut)
+{
+    DmVector corner1, corner2;
+    if (!extractPoint(params, QStringLiteral("corner1"), corner1, errorOut))
+        return nullptr;
+    if (!extractPoint(params, QStringLiteral("corner2"), corner2, errorOut))
+        return nullptr;
+
+    // 用 corner1/corner2 推导四个角点（轴对齐矩形）
+    DmVector p1(corner1);
+    DmVector p2(corner2.x, corner1.y);
+    DmVector p3(corner2);
+    DmVector p4(corner1.x, corner2.y);
+
+    std::vector<DmVector> pts{ p1, p2, p3, p4 };
+    std::vector<double>   bulges(4, 0.0);
+    std::vector<double>   weights(8, 0.0);
+
+    PolylineData polyData(pts, bulges, weights, /*isClosed=*/true);
+    return new DmPolyline(nullptr, polyData);
+}
+
+DmEllipse* DirectEntityExecutor::createEllipseEntity(const QJsonObject& params, QString& errorOut)
+{
+    DmVector center;
+    double  majorRadius = 0.0;
+    double  minorRadius = 0.0;
+    double  angle       = 0.0;
+
+    if (!extractPoint(params, QStringLiteral("center"), center, errorOut))
+        return nullptr;
+    if (!extractDouble(params, QStringLiteral("major_radius"), majorRadius, errorOut))
+        return nullptr;
+    if (!extractDouble(params, QStringLiteral("minor_radius"), minorRadius, errorOut))
+        return nullptr;
     // angle 可选，默认为 0
-    extractDouble(cmd.params, QStringLiteral("angle"), angle, err);
-    // angle 提取失败不算致命错误，使用默认 0
+    extractDouble(params, QStringLiteral("angle"), angle, errorOut);
 
     const double angleRad = angle * M_PI / 180.0;
 
@@ -232,9 +334,19 @@ ExecutorResult DirectEntityExecutor::executeDrawEllipse(const ParsedCommand& cmd
                      /*startParam=*/0.0,
                      /*endParam=*/2.0 * M_PI);
 
-    DmEllipse* entity = new DmEllipse(nullptr, data);
-    finalizeEntity(entity, tr("Create Ellipse").toStdString(), QStringLiteral("DmEllipse"), result);
-    return result;
+    return new DmEllipse(nullptr, data);
+}
+
+QString DirectEntityExecutor::entityTypeName(CommandIntent intent)
+{
+    switch (intent) {
+    case CommandIntent::DrawPoint:     return QStringLiteral("DmPoint");
+    case CommandIntent::DrawLine:      return QStringLiteral("DmLine");
+    case CommandIntent::DrawCircle:    return QStringLiteral("DmCircle");
+    case CommandIntent::DrawRectangle: return QStringLiteral("DmPolyline");
+    case CommandIntent::DrawEllipse:   return QStringLiteral("DmEllipse");
+    default:                           return QStringLiteral("DmEntity");
+    }
 }
 
 // ============================================================================

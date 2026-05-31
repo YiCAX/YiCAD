@@ -410,6 +410,30 @@ QString AIPipeline::buildModelingSystemPrompt()
         "AND clearly state what is missing in the message field.\n"
         "4. Use only the intent values listed above.\n\n"
 
+        "COMPOUND COMMANDS:\n"
+        "- intent: \"draw_compound\" — create multiple entities as one atomic operation.\n"
+        "  Use this when the user asks for complex objects composed of multiple primitives\n"
+        "  (e.g., tables, doors, stairs, gears). The JSON must include a \"steps\" array.\n\n"
+
+        "  \"steps\": (array) list of drawing steps. Each step is an object with:\n"
+        "    - \"intent\": one of draw_point, draw_line, draw_circle, draw_rectangle, draw_ellipse\n"
+        "    - \"params\": same parameter format as the corresponding single command\n\n"
+
+        "  IMPORTANT: all steps execute as ONE atomic unit (single undo/redo).\n\n"
+
+        "  Example for \"draw a table\":\n"
+        "  {\n"
+        "    \"intent\": \"draw_compound\",\n"
+        "    \"message\": \"Drawing a table with legs\",\n"
+        "    \"selection\": {\"mode\": \"none\"},\n"
+        "    \"params\": {},\n"
+        "    \"steps\": [\n"
+        "      {\"intent\": \"draw_rectangle\", \"params\": {\"corner1\": [0,0], \"corner2\": [120,60]}},\n"
+        "      {\"intent\": \"draw_line\", \"params\": {\"start\": [10,60], \"end\": [10,100]}},\n"
+        "      ...\n"
+        "    ]\n"
+        "  }\n\n"
+
         "Output the JSON object only, no other text.");
 
     return prompt;
@@ -452,6 +476,34 @@ QString AIPipeline::executeCommand(const ParsedCommand& cmd)
 
         // 构造成功消息
         QString msg = tr("Drawing completed: %1").arg(cmd.message);
+        if (!result.createdEntities.isEmpty())
+        {
+            msg += QStringLiteral("\n");
+            msg += tr("Created %1 entity(s):").arg(result.createdEntities.size());
+            for (const auto& e : result.createdEntities)
+            {
+                msg += QStringLiteral("\n  • %1 [%2]")
+                           .arg(e.entityType)
+                           .arg(QString::fromStdString(e.entityId.asString()));
+            }
+        }
+        return msg;
+    }
+
+    case CommandIntent::DrawCompound:
+    {
+        if (!m_drawExecutor)
+        {
+            return tr("Drawing executor is not available (no document open).");
+        }
+
+        const ExecutorResult result = m_drawExecutor->executeCompound(cmd);
+        if (!result.success)
+        {
+            return tr("Compound drawing failed: %1").arg(result.errorMessage);
+        }
+
+        QString msg = tr("Compound drawing completed: %1").arg(cmd.message);
         if (!result.createdEntities.isEmpty())
         {
             msg += QStringLiteral("\n");

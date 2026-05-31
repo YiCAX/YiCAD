@@ -48,6 +48,11 @@
 class DmDocument;
 class DmEntity;
 class DmId;
+class DmPoint;
+class DmLine;
+class DmCircle;
+class DmPolyline;
+class DmEllipse;
 
 // ============================================================================
 // 执行结果
@@ -95,6 +100,13 @@ public:
     /// 对于未知 intent 或非绘制类 intent，返回 success=false 并附带错误信息。
     ExecutorResult execute(const ParsedCommand& cmd);
 
+    /// @brief 执行复合绘制命令（intent == DrawCompound）
+    /// @param cmd  ParsedCommand，其 steps 数组含多个图元步骤
+    /// @return ExecutorResult  所有步骤在一个 Transaction 内原子执行
+    ///
+    /// 任意步骤失败则整体回滚；全部成功则一次性提交。
+    ExecutorResult executeCompound(const ParsedCommand& cmd);
+
 private:
     // ---- 各 intent 的实现 ----
     ExecutorResult executeDrawPoint(const ParsedCommand& cmd);
@@ -102,6 +114,29 @@ private:
     ExecutorResult executeDrawCircle(const ParsedCommand& cmd);
     ExecutorResult executeDrawRectangle(const ParsedCommand& cmd);
     ExecutorResult executeDrawEllipse(const ParsedCommand& cmd);
+
+    // ---- 图元创建（纯工厂方法，不含 Transaction 管理） ----
+
+    /// @brief 从 params 创建 DmPoint 实体（调用方接管生命周期）
+    /// @param params    JSON 参数对象
+    /// @param errorOut  失败时填充错误描述
+    /// @return 创建的实体（调用方负责 delete），失败返回 nullptr
+    static DmPoint* createPointEntity(const QJsonObject& params, QString& errorOut);
+
+    /// @brief 从 params 创建 DmLine 实体
+    static DmLine* createLineEntity(const QJsonObject& params, QString& errorOut);
+
+    /// @brief 从 params 创建 DmCircle 实体
+    static DmCircle* createCircleEntity(const QJsonObject& params, QString& errorOut);
+
+    /// @brief 从 params 创建 DmPolyline 实体（矩形）
+    static DmPolyline* createRectangleEntity(const QJsonObject& params, QString& errorOut);
+
+    /// @brief 从 params 创建 DmEllipse 实体
+    static DmEllipse* createEllipseEntity(const QJsonObject& params, QString& errorOut);
+
+    /// @brief 将 CommandIntent 映射为实体类型名（如 DrawLine → "DmLine"）
+    static QString entityTypeName(CommandIntent intent);
 
     // ---- 工具函数：从 JSON params 提取参数 ----
 

@@ -101,6 +101,7 @@ enum class CommandIntent
     DrawSpline,
     DrawPolyline,
     DrawText,
+    DrawCompound,      ///< 复合绘制（steps 数组中含多个图元步骤）
 
     // ---- 标注 ----
     Dimension,
@@ -113,6 +114,20 @@ enum class CommandIntent
     // ---- 图块 ----
     BlockInsert,
     BlockCreate,
+};
+
+// ============================================================================
+// 复合命令步骤
+// ============================================================================
+
+/// @brief 复合命令中的单个图元步骤
+///
+/// 仅当 ParsedCommand::intent == DrawCompound 时使用。
+/// steps 数组中每个元素为一个 CommandStep。
+struct CommandStep
+{
+    CommandIntent intent = CommandIntent::Unknown;  ///< 图元类型
+    QJsonObject   params;                            ///< 图元参数（透传）
 };
 
 /// @brief 将 intent 字符串转为枚举（如 "draw_circle" → CommandIntent::DrawCircle）
@@ -142,6 +157,7 @@ struct ParsedCommand
     QStringList   missingInputs;                               ///< 缺失的输入项
     bool          needsConfirmation = false;                   ///< 是否需要用户确认
     QString       message;                                     ///< 人类可读的操作描述
+    QVector<CommandStep> steps;                                ///< 复合命令的步骤列表（仅 intent == DrawCompound 时有效）
 
     // ---- 原始数据（调试用） ----
     QString       rawText;          ///< LLM 返回的完整原始文本
