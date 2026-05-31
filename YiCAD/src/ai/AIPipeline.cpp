@@ -443,7 +443,7 @@ QString AIPipeline::buildModelingSystemPrompt()
 
         "The JSON must have these fields:\n"
         "- intent: (string) one of: draw_point, draw_line, draw_circle, "
-        "draw_rectangle, draw_ellipse\n"
+        "draw_rectangle, draw_ellipse, draw_arc\n"
         "- selection: (object) with \"mode\" field. mode values:\n"
         "    \"none\" (for creating new entities),\n"
         "    \"current_selection\" (use currently selected entities),\n"
@@ -455,6 +455,7 @@ QString AIPipeline::buildModelingSystemPrompt()
         "    corner1: [x, y], corner2: [x, y] (for draw_rectangle)\n"
         "    position: [x, y] (for draw_point)\n"
         "    center: [x, y], majorRadius: number, minorRadius: number (for draw_ellipse)\n"
+        "    center: [x, y], radius: number, start_angle: number, end_angle: number (angles in degrees, for draw_arc)\n"
         "- missing_inputs: (array of strings) inputs that need more information\n"
         "- needs_confirmation: (boolean) reserved for future use\n"
         "- message: (string) human-readable description of the operation\n\n"
@@ -505,6 +506,7 @@ QString AIPipeline::executeCommand(const ParsedCommand& cmd)
     case CommandIntent::DrawLine:
     case CommandIntent::DrawCircle:
     case CommandIntent::DrawRectangle:
+    case CommandIntent::DrawArc:
     case CommandIntent::DrawEllipse:
     {
         if (!m_drawExecutor)

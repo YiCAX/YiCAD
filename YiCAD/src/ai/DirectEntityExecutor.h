@@ -19,14 +19,14 @@
 ///
 /// 职责：
 ///   - 接收 LLMCommandBridge 产出的 ParsedCommand
-///   - 针对 draw_point / draw_line / draw_circle / draw_rectangle / draw_ellipse
-///     五种意图，从 params 中提取几何参数并直接构造 DmEntity 子类
+///   - 针对 draw_point / draw_line / draw_circle / draw_rectangle / draw_ellipse / draw_arc
+///     六种意图，从 params 中提取几何参数并直接构造 DmEntity 子类
 ///   - 通过 Transaction 包裹创建过程，保证 Undo/Redo
 ///   - 通过 EntityTable::add 标准路径添加实体
 ///   - 不做修改、不做删除
 ///
 /// 已知限制（当前版本）：
-///   - 仅支持 5 种直接创建绘制命令
+///   - 仅支持 6 种直接创建绘制命令
 ///   - 不支持块参照、标注、文字、样条曲线、多段线(自由形式)
 ///   - 不支持 selection / missing_inputs 处理
 ///   - params 校验较宽容（缺参静默失败）
@@ -52,6 +52,7 @@ class DmPoint;
 class DmLine;
 class DmCircle;
 class DmPolyline;
+class DmArc;
 class DmEllipse;
 
 // ============================================================================
@@ -114,6 +115,7 @@ private:
     ExecutorResult executeDrawCircle(const ParsedCommand& cmd);
     ExecutorResult executeDrawRectangle(const ParsedCommand& cmd);
     ExecutorResult executeDrawEllipse(const ParsedCommand& cmd);
+    ExecutorResult executeDrawArc(const ParsedCommand& cmd);
 
     // ---- 图元创建（纯工厂方法，不含 Transaction 管理） ----
 
@@ -134,6 +136,9 @@ private:
 
     /// @brief 从 params 创建 DmEllipse 实体
     static DmEllipse* createEllipseEntity(const QJsonObject& params, QString& errorOut);
+
+    /// @brief 从 params 创建 DmArc 实体
+    static DmArc* createArcEntity(const QJsonObject& params, QString& errorOut);
 
     /// @brief 将 CommandIntent 映射为实体类型名（如 DrawLine → "DmLine"）
     static QString entityTypeName(CommandIntent intent);

@@ -22,6 +22,8 @@
 #include "CircleData.h"
 #include "DmCircle.h"
 #include "DmDocument.h"
+#include "ArcData.h"
+#include "DmArc.h"
 #include "DmEllipse.h"
 #include "DmEntity.h"
 #include "DmId.h"
@@ -66,13 +68,15 @@ ExecutorResult DirectEntityExecutor::execute(const ParsedCommand& cmd)
         return executeDrawRectangle(cmd);
     case CommandIntent::DrawEllipse:
         return executeDrawEllipse(cmd);
+    case CommandIntent::DrawArc:
+        return executeDrawArc(cmd);
 
     default: {
         ExecutorResult fail;
         fail.success      = false;
         fail.errorMessage = tr(
             "DirectEntityExecutor: unsupported intent '%1'. "
-            "Only draw_point / draw_line / draw_circle / draw_rectangle / draw_ellipse "
+            "Only draw_point / draw_line / draw_circle / draw_rectangle / draw_ellipse / draw_arc "
             "are supported.").arg(intentToString(cmd.intent));
         return fail;
     }
@@ -122,6 +126,9 @@ ExecutorResult DirectEntityExecutor::executeCompound(const ParsedCommand& cmd)
             break;
         case CommandIntent::DrawEllipse:
             entity = createEllipseEntity(step.params, stepError);
+            break;
+        case CommandIntent::DrawArc:
+            entity = createArcEntity(step.params, stepError);
             break;
         default:
             t.rollback();
@@ -240,6 +247,22 @@ ExecutorResult DirectEntityExecutor::executeDrawEllipse(const ParsedCommand& cmd
     return result;
 }
 
+ExecutorResult DirectEntityExecutor::executeDrawArc(const ParsedCommand& cmd)
+{
+    ExecutorResult result;
+
+    QString err;
+    DmArc* entity = createArcEntity(cmd.params, err);
+    if (!entity) {
+        result.success      = false;
+        result.errorMessage = tr("DirectEntityExecutor::draw_arc -- %1").arg(err);
+        return result;
+    }
+
+    finalizeEntity(entity, tr("Create Arc").toStdString(), QStringLiteral("DmArc"), result);
+    return result;
+}
+
 // ============================================================================
 // 图元创建（纯工厂方法，不含 Transaction 管理）
 // ============================================================================
@@ -337,6 +360,33 @@ DmEllipse* DirectEntityExecutor::createEllipseEntity(const QJsonObject& params, 
     return new DmEllipse(nullptr, data);
 }
 
+DmArc* DirectEntityExecutor::createArcEntity(const QJsonObject& params, QString& errorOut)
+{
+    DmVector center;
+    double  radius      = 0.0;
+    double  startAngle  = 0.0;
+    double  endAngle    = 0.0;
+
+    if (!extractPoint(params, QStringLiteral("center"), center, errorOut))
+        return nullptr;
+    if (!extractDouble(params, QStringLiteral("radius"), radius, errorOut))
+        return nullptr;
+    if (!extractDouble(params, QStringLiteral("start_angle"), startAngle, errorOut))
+        return nullptr;
+    if (!extractDouble(params, QStringLiteral("end_angle"), endAngle, errorOut))
+        return nullptr;
+
+    // LLM 传入的是角度制，转为弧度制
+    const double startRad = startAngle * M_PI / 180.0;
+    const double endRad   = endAngle   * M_PI / 180.0;
+
+    // 2D 绘图，法向量固定为 Z 轴向上
+    DmVector normal(0.0, 0.0, 1.0);
+
+    ArcData data(center, normal, radius, startRad, endRad);
+    return new DmArc(nullptr, data);
+}
+
 QString DirectEntityExecutor::entityTypeName(CommandIntent intent)
 {
     switch (intent) {
@@ -345,6 +395,7 @@ QString DirectEntityExecutor::entityTypeName(CommandIntent intent)
     case CommandIntent::DrawCircle:    return QStringLiteral("DmCircle");
     case CommandIntent::DrawRectangle: return QStringLiteral("DmPolyline");
     case CommandIntent::DrawEllipse:   return QStringLiteral("DmEllipse");
+    case CommandIntent::DrawArc:       return QStringLiteral("DmArc");
     default:                           return QStringLiteral("DmEntity");
     }
 }
