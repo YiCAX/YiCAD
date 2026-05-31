@@ -364,6 +364,18 @@ void AIPipeline::onModelingProviderResponse(const QString& responseText)
 
     if (!cmd.ok)
     {
+        // 解析失败：可能是 LLM 返回了纯文本（非建模指令的友好回复）
+        // 检查响应是否看起来像纯文本而非 JSON
+        const QString trimmed = responseText.trimmed();
+        if (!trimmed.startsWith(QStringLiteral("{")))
+        {
+            // 这是纯文本回复，直接展示给用户
+            m_history.pushAssistant(trimmed);
+            emit responseReady(tr("AI"), trimmed);
+            return;
+        }
+
+        // 确实是 JSON 解析错误
         emit errorOccurred(tr("Parse Error"),
                            tr("Failed to parse modeling command from LLM response:\n%1\n\n"
                               "Raw response:\n%2")
@@ -452,6 +464,11 @@ QString AIPipeline::buildModelingSystemPrompt()
         "Each object will be executed immediately as it arrives — entities appear "
         "one by one on the canvas.\n\n"
 
+        "IMPORTANT: If the user's input is NOT a modeling command (e.g., greetings like "
+        "\"hello\", \"hi\", \"你好\", questions, or casual chat), respond with plain text "
+        "explaining that you are in Modeling mode and can only execute drawing commands. "
+        "Do NOT generate JSON for non-modeling inputs.\n\n"
+
         "The JSON must have these fields:\n"
         "- intent: (string) one of: draw_point, draw_line, draw_circle, "
         "draw_rectangle, draw_ellipse, draw_arc, draw_text\n"
@@ -500,7 +517,8 @@ QString AIPipeline::buildModelingSystemPrompt()
         "{\"intent\":\"draw_line\",\"message\":\"Drawing leg 2\",\"selection\":{\"mode\":\"none\"},\"params\":{\"start\":[110,60],\"end\":[110,100]},"
         "\"missing_inputs\":[],\"needs_confirmation\":false}\n\n"
 
-        "Output the JSON objects only, no other text.");
+        "For modeling commands, output the JSON objects only, no other text. "
+        "For non-modeling inputs, output plain text explanation.");
 
     return prompt;
 }
