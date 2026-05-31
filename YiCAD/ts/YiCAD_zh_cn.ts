@@ -8299,6 +8299,11 @@ Please provide their values directly in the dialog.</source>
         <translation>历史</translation>
     </message>
     <message>
+        <location filename="../src/ui/AIDialog.cpp" line="88"/>
+        <source>New Session</source>
+        <translation>新会话</translation>
+    </message>
+    <message>
         <location filename="../src/ui/AIDialog.cpp" line="159"/>
         <source>User</source>
         <translation>用户</translation>

@@ -24,6 +24,7 @@
 #include <QGroupBox>
 #include <QCloseEvent>
 #include <QScrollBar>
+#include <QPainter>
 
 AIDialog::AIDialog(QWidget* parent)
     : QDialog(parent)
@@ -81,6 +82,36 @@ void AIDialog::setupUI()
     pModeLayout->addWidget(m_pModeLabel);
     pModeLayout->addWidget(m_pModeCombo);
     pModeLayout->addStretch();
+
+    // 新会话按钮（右上角，配置按钮左侧）
+    m_pBtnNewSession = new QPushButton(this);
+    m_pBtnNewSession->setToolTip(tr("New Session"));
+    {
+        // 绘制新会话图标：带折角的文档 + 加号
+        QPixmap pixmap(18, 18);
+        pixmap.fill(Qt::transparent);
+        QPainter painter(&pixmap);
+        painter.setRenderHint(QPainter::Antialiasing);
+        QPen pen(painter.pen().color(), 1.5);
+        painter.setPen(pen);
+        // 文档主体
+        painter.drawRoundedRect(2, 1, 11, 14, 2, 2);
+        // 折角
+        painter.drawLine(QPointF(8.5, 1), QPointF(8.5, 4.5));
+        painter.drawLine(QPointF(8.5, 4.5), QPointF(13, 4.5));
+        // 加号
+        const qreal cx = 7.5, cy = 9.5, half = 3;
+        painter.drawLine(QPointF(cx - half, cy), QPointF(cx + half, cy));
+        painter.drawLine(QPointF(cx, cy - half), QPointF(cx, cy + half));
+        painter.end();
+        m_pBtnNewSession->setIcon(QIcon(pixmap));
+    }
+    pModeLayout->addWidget(m_pBtnNewSession);
+
+    // 配置按钮放在右上角
+    m_pBtnConfig = new QPushButton(tr("Config"), this);
+    pModeLayout->addWidget(m_pBtnConfig);
+
     pMainLayout->addLayout(pModeLayout);
 
     // ========== 中部：对话显示区 ==========
@@ -111,20 +142,6 @@ void AIDialog::setupUI()
     pInputRow->addWidget(m_pBtnSend);
     pInputLayout->addLayout(pInputRow);
 
-    // 操作按钮行
-    auto* pBtnRow = new QHBoxLayout();
-    m_pBtnExecute = new QPushButton(tr("Execute"), this);
-    m_pBtnCancel  = new QPushButton(tr("Cancel"), this);
-    m_pBtnConfig  = new QPushButton(tr("Config"), this);
-    m_pBtnHistory = new QPushButton(tr("History"), this);
-
-    pBtnRow->addWidget(m_pBtnExecute);
-    pBtnRow->addWidget(m_pBtnCancel);
-    pBtnRow->addWidget(m_pBtnConfig);
-    pBtnRow->addWidget(m_pBtnHistory);
-    pBtnRow->addStretch();
-    pInputLayout->addLayout(pBtnRow);
-
     pMainLayout->addWidget(pInputGroup);
 }
 
@@ -133,17 +150,11 @@ void AIDialog::setupConnections()
     // 发送按钮 → 发射 sendRequested 信号
     connect(m_pBtnSend, &QPushButton::clicked, this, &AIDialog::slotSendClicked);
 
-    // 执行按钮 → 发射 executeRequested 信号
-    connect(m_pBtnExecute, &QPushButton::clicked, this, &AIDialog::slotExecuteClicked);
+    // 新会话按钮 → 发射 newSessionRequested 信号
+    connect(m_pBtnNewSession, &QPushButton::clicked, this, &AIDialog::slotNewSessionClicked);
 
-    // 取消按钮 → 发射 cancelRequested 信号
-    connect(m_pBtnCancel, &QPushButton::clicked, this, &AIDialog::slotCancelClicked);
-
-    // 配置按钮 → 发射 configRequested 信号（占位，后续连接 LLM 配置）
+    // 配置按钮 → 发射 configRequested 信号
     connect(m_pBtnConfig, &QPushButton::clicked, this, &AIDialog::slotConfigClicked);
-
-    // 历史记录按钮 → 发射 historyRequested 信号（占位，后续连接历史面板）
-    connect(m_pBtnHistory, &QPushButton::clicked, this, &AIDialog::slotHistoryClicked);
 
     // 模式切换
     connect(m_pModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -215,34 +226,14 @@ void AIDialog::slotSendClicked()
     emit sendRequested(text, mode);
 }
 
-void AIDialog::slotExecuteClicked()
+void AIDialog::slotNewSessionClicked()
 {
-    QString text = m_pInputEdit->toPlainText().trimmed();
-    if (text.isEmpty())
-    {
-        return;
-    }
-
-    // 在对话区显示执行提示
-    appendMessage(tr("System"), tr("Executing: %1").arg(text));
-
-    // 发射信号
-    emit executeRequested(text);
-}
-
-void AIDialog::slotCancelClicked()
-{
-    emit cancelRequested();
+    emit newSessionRequested();
 }
 
 void AIDialog::slotConfigClicked()
 {
     emit configRequested();
-}
-
-void AIDialog::slotHistoryClicked()
-{
-    emit historyRequested();
 }
 
 void AIDialog::slotModeChanged(int index)

@@ -27,7 +27,6 @@ class DmDocument;
 class GuiDocumentView;
 class AIDialog;
 class AIPipeline;
-class ConversationStore;
 
 /// @brief AI 助手控制器
 ///
@@ -53,22 +52,15 @@ public:
 private slots:
     void onSendRequested(const QString& text, const QString& mode);
     void onConfigRequested();
-    void onDialogClosing();
+    void onNewSessionRequested();
     void onPipelineResponse(const QString& sender, const QString& text);
-    void onHistoryRequested();
-    void onLoadSessionRequested(const QString& sessionId);
 
 private:
     void ensureCreated(DmDocument* doc, GuiDocumentView* docView);
-    void saveCurrentSession();
-    void loadLatestSession();
 
     QWidget*            m_parentWindow = nullptr;
     AIDialog*           m_dialog       = nullptr;
     AIPipeline*         m_pipeline     = nullptr;
-    ConversationStore*  m_store        = nullptr;
-    QString             m_currentSessionId;
-    int                 m_unsavedMsgCount = 0; ///< 自上次保存以来的新消息数
 };
 
 #endif // AIASSISTANT_H

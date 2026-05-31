@@ -69,22 +69,11 @@ signals:
     /// @param [in] mode 当前模式："问答" / "建模" / "自动"
     void sendRequested(const QString& text, const QString& mode);
 
-    /// @brief 用户点击执行按钮
-    /// @param [in] text 待执行的命令文本
-    void executeRequested(const QString& text);
-
-    /// @brief 用户点击取消按钮
-    void cancelRequested();
+    /// @brief 用户点击新会话按钮
+    void newSessionRequested();
 
     /// @brief 用户点击配置按钮
     void configRequested();
-
-    /// @brief 用户点击历史记录按钮
-    void historyRequested();
-
-    /// @brief 用户选择加载某个历史会话
-    /// @param [in] sessionId 会话 ID
-    void loadSessionRequested(const QString& sessionId);
 
 protected:
     /// @brief 关闭事件，隐藏而非销毁（modeless 行为）
@@ -95,17 +84,11 @@ private slots:
     /// @brief 发送按钮点击槽
     void slotSendClicked();
 
-    /// @brief 执行按钮点击槽
-    void slotExecuteClicked();
-
-    /// @brief 取消按钮点击槽
-    void slotCancelClicked();
+    /// @brief 新会话按钮点击槽
+    void slotNewSessionClicked();
 
     /// @brief 配置按钮点击槽
     void slotConfigClicked();
-
-    /// @brief 历史记录按钮点击槽
-    void slotHistoryClicked();
 
     /// @brief 模式切换响应
     /// @param [in] index 模式索引
@@ -125,10 +108,8 @@ private:
     QTextEdit*      m_pChatView = nullptr;           ///< 对话显示区（只读）
     QTextEdit*      m_pInputEdit = nullptr;          ///< 输入框
     QPushButton*    m_pBtnSend = nullptr;            ///< 发送按钮
-    QPushButton*    m_pBtnExecute = nullptr;         ///< 执行按钮
-    QPushButton*    m_pBtnCancel = nullptr;          ///< 取消按钮
-    QPushButton*    m_pBtnConfig = nullptr;          ///< 配置按钮
-    QPushButton*    m_pBtnHistory = nullptr;         ///< 历史记录按钮
+    QPushButton*    m_pBtnNewSession = nullptr;      ///< 新会话按钮（右上角）
+    QPushButton*    m_pBtnConfig = nullptr;          ///< 配置按钮（右上角）
 };
 
 #endif  // AIDIALOG_H
