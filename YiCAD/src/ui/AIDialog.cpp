@@ -155,6 +155,21 @@ void AIDialog::clearChatView()
     m_pChatView->clear();
 }
 
+void AIDialog::setSendEnabled(bool enabled)
+{
+    m_pBtnSend->setEnabled(enabled);
+    if (enabled)
+    {
+        m_pBtnSend->setCursor(Qt::ArrowCursor);
+        m_pBtnSend->setToolTip(QString());
+    }
+    else
+    {
+        m_pBtnSend->setCursor(Qt::ForbiddenCursor);
+        m_pBtnSend->setToolTip(tr("AI is processing, please wait..."));
+    }
+}
+
 void AIDialog::appendMessage(const QString& sender, const QString& message)
 {
     m_pChatView->moveCursor(QTextCursor::End);

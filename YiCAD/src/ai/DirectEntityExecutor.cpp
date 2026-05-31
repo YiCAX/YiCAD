@@ -91,7 +91,7 @@ ExecutorResult DirectEntityExecutor::executeDrawPoint(const ParsedCommand& cmd)
     QString err;
     if (!extractPoint(cmd.params, QStringLiteral("position"), pos, err)) {
         result.success      = false;
-        result.errorMessage = tr("DirectEntityExecutor::draw_point — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_point -- %1").arg(err);
         return result;
     }
 
@@ -109,12 +109,12 @@ ExecutorResult DirectEntityExecutor::executeDrawLine(const ParsedCommand& cmd)
     QString err;
     if (!extractPoint(cmd.params, QStringLiteral("start"), start, err)) {
         result.success      = false;
-        result.errorMessage = tr("DirectEntityExecutor::draw_line — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_line -- %1").arg(err);
         return result;
     }
     if (!extractPoint(cmd.params, QStringLiteral("end"), end, err)) {
         result.success      = false;
-        result.errorMessage = tr("DirectEntityExecutor::draw_line — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_line -- %1").arg(err);
         return result;
     }
 
@@ -134,12 +134,12 @@ ExecutorResult DirectEntityExecutor::executeDrawCircle(const ParsedCommand& cmd)
 
     if (!extractPoint(cmd.params, QStringLiteral("center"), center, err)) {
         result.success      = false;
-        result.errorMessage = tr("DirectEntityExecutor::draw_circle — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_circle -- %1").arg(err);
         return result;
     }
     if (!extractDouble(cmd.params, QStringLiteral("radius"), radius, err)) {
         result.success      = false;
-        result.errorMessage = tr("DirectEntityExecutor::draw_circle — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_circle -- %1").arg(err);
         return result;
     }
 
@@ -157,12 +157,12 @@ ExecutorResult DirectEntityExecutor::executeDrawRectangle(const ParsedCommand& c
     QString  err;
     if (!extractPoint(cmd.params, QStringLiteral("corner1"), corner1, err)) {
         result.success      = false;
-        result.errorMessage = tr("DirectEntityExecutor::draw_rectangle — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_rectangle -- %1").arg(err);
         return result;
     }
     if (!extractPoint(cmd.params, QStringLiteral("corner2"), corner2, err)) {
         result.success      = false;
-        result.errorMessage = tr("DirectEntityExecutor::draw_rectangle — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_rectangle -- %1").arg(err);
         return result;
     }
 
@@ -198,17 +198,17 @@ ExecutorResult DirectEntityExecutor::executeDrawEllipse(const ParsedCommand& cmd
 
     if (!extractPoint(cmd.params, QStringLiteral("center"), center, err)) {
         result.success      = false;
-        result.errorMessage = tr("DirectEntityExecutor::draw_ellipse — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_ellipse -- %1").arg(err);
         return result;
     }
     if (!extractDouble(cmd.params, QStringLiteral("major_radius"), majorRadius, err)) {
         result.success      = false;
-        result.errorMessage = tr("DirectEntityExecutor::draw_ellipse — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_ellipse -- %1").arg(err);
         return result;
     }
     if (!extractDouble(cmd.params, QStringLiteral("minor_radius"), minorRadius, err)) {
         result.success      = false;
-        result.errorMessage = tr("DirectEntityExecutor::draw_ellipse — %1").arg(err);
+        result.errorMessage = tr("DirectEntityExecutor::draw_ellipse -- %1").arg(err);
         return result;
     }
     // angle 可选，默认为 0

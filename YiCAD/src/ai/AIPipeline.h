@@ -23,7 +23,7 @@
 ///   - 手动模式 (qa / modeling) 同步分发，Bypass LLM
 ///   - QA 链路：RAGPipeline 检索 + 模型回答 + 引用
 ///   - Modeling 链路：LLM 建模 prompt → JSON 解析 → ContextResolver → Executor
-///   - 3B 双 Pipeline 并发：LLM 不确定时 QA+Modeling 同时飞行
+///   - LLM 不确定时提示用户手动选择模式
 ///   - 统一通过 responseReady / errorOccurred 信号向 UI 层回报
 ///
 /// 使用方式：
@@ -90,7 +90,7 @@ public:
     ///
     /// 自动模式：AIIntentRouter::route() → 占位 Uncertain → AILLMClassifier 异步分类 → dispatchByIntent
     /// 手动模式：AIIntentRouter::route() 同步返回 1.0 置信度 → dispatchByIntent
-    /// LLM 不可用/Uncertain → handleUncertainInput (3B 双 Pipeline 并发)
+    /// LLM 不可用/Uncertain → 提示用户手动选择模式
     void handleUserInput(const QString& text, const QString& mode);
 
 signals:
@@ -118,11 +118,6 @@ private:
     /// @brief 根据路由结果分发到 QA / Modeling / Mixed / Uncertain 链路
     void dispatchByIntent(const RouterResult& route, const QString& text);
 
-    /// @brief 3B 双 Pipeline 并发入口（LLM 不确定或不可用时）
-    void handleUncertainInput(const QString& text);
-
-    /// @brief 3B 双 Pipeline 回调汇总，择优展示结果（Modeling 优先）
-    void tryResolveDualPipeline();
 
     // ---- 链路内部分发 ----
     /// @brief QA 链路：展示路由信息并调用 RAGPipeline
@@ -172,11 +167,6 @@ private:
     // ---- LLM 分类竞态保护 ----
     int m_classifySeq = 0;  ///< LLM 分类请求序列号（防止乱序回调）
 
-    // ---- 3B 双 Pipeline 并发 ----
-    int m_dualPendingCount = 0;                       ///< 3B 待完成计数（2 → 0 时汇总）
-    std::optional<RAGAnswer> m_pendingQAResult;       ///< 3B QA 暂存结果
-    ParsedCommand m_pendingModelResult;               ///< 3B Modeling 暂存结果
-    bool m_inDualPipeline = false;                    ///< 是否正在 3B 双 Pipeline 模式
 };
 
 #endif // AIPIPELINE_H

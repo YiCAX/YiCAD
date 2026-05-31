@@ -99,6 +99,9 @@ void AIAssistant::ensureCreated(DmDocument* doc, GuiDocumentView* docView)
 
 void AIAssistant::onSendRequested(const QString& text, const QString& /*mode*/)
 {
+    // AI 处理期间禁用发送按钮
+    m_dialog->setSendEnabled(false);
+
     const int idx = m_dialog->modeIndex();
     const QString token = (idx == 0) ? QStringLiteral("qa")
                         : (idx == 1) ? QStringLiteral("modeling")
@@ -117,8 +120,14 @@ void AIAssistant::onDialogClosing()
     saveCurrentSession();
 }
 
-void AIAssistant::onPipelineResponse(const QString& /*sender*/, const QString& /*text*/)
+void AIAssistant::onPipelineResponse(const QString& sender, const QString& /*text*/)
 {
+    // AI 最终回复或错误时恢复发送按钮（System 消息是中间状态）
+    if (sender == QStringLiteral("AI") || sender != QStringLiteral("System"))
+    {
+        m_dialog->setSendEnabled(true);
+    }
+
     // 每 5 条消息后自动保存一次
     ++m_unsavedMsgCount;
     if (m_unsavedMsgCount >= 5)

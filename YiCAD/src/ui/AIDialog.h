@@ -60,6 +60,9 @@ public:
     /// @brief 清空对话显示区（用于加载历史会话前清理旧内容）
     void clearChatView();
 
+    /// @brief 设置发送按钮是否可用（AI 处理期间禁用）
+    void setSendEnabled(bool enabled);
+
 signals:
     /// @brief 用户点击发送按钮，携带输入文本和当前模式
     /// @param [in] text 用户输入的文本

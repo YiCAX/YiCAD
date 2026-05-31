@@ -158,7 +158,7 @@ ParsedCommand LLMCommandBridge::parse(const QString& llmRawResponse) const
     if (!tryParseJson(candidate, obj, parseError)) {
         ParsedCommand fail;
         fail.ok           = false;
-        fail.errorMessage = tr("LLMCommandBridge: JSON parse failed — ")
+        fail.errorMessage = tr("LLMCommandBridge: JSON parse failed -- ")
                             + parseError;
         fail.rawText      = llmRawResponse;
         return fail;

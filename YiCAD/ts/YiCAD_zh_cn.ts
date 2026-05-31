@@ -8068,8 +8068,8 @@ p, li { white-space: pre-wrap; }
     </message>
     <message>
         <location filename="../src/ai/DirectEntityExecutor.cpp" line="93"/>
-        <source>DirectEntityExecutor::draw_point — %1</source>
-        <translation>DirectEntityExecutor::draw_point — %1</translation>
+        <source>DirectEntityExecutor::draw_point -- %1</source>
+        <translation>DirectEntityExecutor::draw_point -- %1</translation>
     </message>
     <message>
         <location filename="../src/ai/DirectEntityExecutor.cpp" line="99"/>
@@ -8078,8 +8078,8 @@ p, li { white-space: pre-wrap; }
     </message>
     <message>
         <location filename="../src/ai/DirectEntityExecutor.cpp" line="111"/>
-        <source>DirectEntityExecutor::draw_line — %1</source>
-        <translation>DirectEntityExecutor::draw_line — %1</translation>
+        <source>DirectEntityExecutor::draw_line -- %1</source>
+        <translation>DirectEntityExecutor::draw_line -- %1</translation>
     </message>
     <message>
         <location filename="../src/ai/DirectEntityExecutor.cpp" line="122"/>
@@ -8088,8 +8088,8 @@ p, li { white-space: pre-wrap; }
     </message>
     <message>
         <location filename="../src/ai/DirectEntityExecutor.cpp" line="136"/>
-        <source>DirectEntityExecutor::draw_circle — %1</source>
-        <translation>DirectEntityExecutor::draw_circle — %1</translation>
+        <source>DirectEntityExecutor::draw_circle -- %1</source>
+        <translation>DirectEntityExecutor::draw_circle -- %1</translation>
     </message>
     <message>
         <location filename="../src/ai/DirectEntityExecutor.cpp" line="147"/>
@@ -8098,8 +8098,8 @@ p, li { white-space: pre-wrap; }
     </message>
     <message>
         <location filename="../src/ai/DirectEntityExecutor.cpp" line="159"/>
-        <source>DirectEntityExecutor::draw_rectangle — %1</source>
-        <translation>DirectEntityExecutor::draw_rectangle — %1</translation>
+        <source>DirectEntityExecutor::draw_rectangle -- %1</source>
+        <translation>DirectEntityExecutor::draw_rectangle -- %1</translation>
     </message>
     <message>
         <location filename="../src/ai/DirectEntityExecutor.cpp" line="184"/>
@@ -8108,8 +8108,8 @@ p, li { white-space: pre-wrap; }
     </message>
     <message>
         <location filename="../src/ai/DirectEntityExecutor.cpp" line="200"/>
-        <source>DirectEntityExecutor::draw_ellipse — %1</source>
-        <translation>DirectEntityExecutor::draw_ellipse — %1</translation>
+        <source>DirectEntityExecutor::draw_ellipse -- %1</source>
+        <translation>DirectEntityExecutor::draw_ellipse -- %1</translation>
     </message>
     <message>
         <location filename="../src/ai/DirectEntityExecutor.cpp" line="235"/>
@@ -8153,6 +8153,34 @@ p, li { white-space: pre-wrap; }
     </message>
 </context>
 <context>
+    <name>AIPipeline</name>
+    <message>
+        <location filename="../src/ai/AIPipeline.cpp" line="425"/>
+        <source>The following parameters are required: %1
+Please provide their values directly in the dialog.</source>
+        <translation>需要以下参数：%1
+请直接在对话中提供这些参数的值。</translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIPipeline.cpp" line="552"/>
+        <source>Drawing failed: %1</source>
+        <translation>绘图失败：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIPipeline.cpp" line="132"/>
+        <source>Unable to parse your command.</source>
+        <translation>无法解析你的指令</translation>
+    </message>
+</context>
+<context>
+    <name>AIDialog</name>
+    <message>
+        <location filename="../src/ui/AIDialog.cpp" line="165"/>
+        <source>AI is processing, please wait...</source>
+        <translation>AI 处理中，请稍候...</translation>
+    </message>
+</context>
+<context>
     <name>LLMCommandBridge</name>
     <message>
         <location filename="../src/ai/LLMCommandBridge.cpp" line="166"/>
@@ -8161,8 +8189,8 @@ p, li { white-space: pre-wrap; }
     </message>
     <message>
         <location filename="../src/ai/LLMCommandBridge.cpp" line="179"/>
-        <source>LLMCommandBridge: JSON parse failed — </source>
-        <translation>LLMCommandBridge: JSON 解析失败 — </translation>
+        <source>LLMCommandBridge: JSON parse failed -- </source>
+        <translation>LLMCommandBridge: JSON 解析失败 -- </translation>
     </message>
     <message>
         <location filename="../src/ai/LLMCommandBridge.cpp" line="244"/>

@@ -188,7 +188,10 @@ void DeepSeekProvider::onReplyFinished(QNetworkReply* reply)
     }
     else
     {
-        emit errorOccurred(tr("Invalid response format: unable to parse AI reply content."));
+        // 输出原始响应用于排查
+        const QString preview = QString::fromUtf8(body.left(500));
+        emit errorOccurred(tr("Invalid response format: unable to parse AI reply content.\n"
+                              "Raw response preview: %1").arg(preview));
     }
 
     reply->deleteLater();
@@ -313,13 +316,37 @@ bool DeepSeekProvider::parseResponseContent(const QByteArray& responseData,
     const QJsonObject firstChoice = choices[0].toObject();
     const QJsonObject message     = firstChoice["message"].toObject();
 
-    if (!message.contains("content"))
+    // 1. 优先读取 content（标准模型）
+    if (message.contains("content"))
     {
-        return false;
+        const QJsonValue contentVal = message["content"];
+        if (contentVal.isString())
+        {
+            const QString text = contentVal.toString().trimmed();
+            if (!text.isEmpty())
+            {
+                outText = text;
+                return true;
+            }
+        }
     }
 
-    outText = message["content"].toString();
-    return true;
+    // 2. content 为空 → 回退到 reasoning_content（推理模型如 deepseek-v4-pro）
+    if (message.contains("reasoning_content"))
+    {
+        const QJsonValue reasoningVal = message["reasoning_content"];
+        if (reasoningVal.isString())
+        {
+            const QString text = reasoningVal.toString().trimmed();
+            if (!text.isEmpty())
+            {
+                outText = text;
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 bool DeepSeekProvider::parseErrorResponse(const QByteArray& responseData,

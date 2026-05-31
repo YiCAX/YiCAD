@@ -144,9 +144,10 @@ int AILLMClassifier::classify(const QString& input,
             callback(IntentType::Uncertain, 0.0f);
     });
 
-    // 发起 LLM 调用：空历史，传入 system prompt，temperature=0，max_tokens=16
+    // 发起 LLM 调用：空历史，传入 system prompt，temperature=0
+    // max_tokens=128：为推理模型（deepseek-v4-pro 等）留足 reasoning + answer 空间
     m_provider->sendMessage(input, QVector<MessageEntry>(),
-                            sysPrompt, 0.0, 16);
+                            sysPrompt, 0.0, 128);
 
     return seq;
 }

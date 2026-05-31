@@ -57,19 +57,8 @@ AIPipeline::AIPipeline(const QString& docsDir,
     {
         emit errorOccurred(tr("Warning"),
                            tr("LLM classifier is not available (API Key not configured). "
-                              "Falling back to dual-pipeline mode."));
+                              "Auto mode will be limited."));
     }
-
-    // 连接分类失败信号（用于降级到 3B）
-    connect(m_llmClassifier.get(), &AILLMClassifier::classificationFailed,
-            this, [this](const QString& reason) {
-        Q_UNUSED(reason)
-        // 降级：如果当前没有在 3B 模式且有待处理的用户输入，走双 Pipeline
-        if (!m_inDualPipeline && !m_lastUserText.isEmpty())
-        {
-            handleUncertainInput(m_lastUserText);
-        }
-    });
 
     // ---- 2. 初始化 RAG（加载知识库） ----
     m_ragReady = m_ragPipeline->initialize(docsDir, readmePath);
@@ -137,10 +126,11 @@ void AIPipeline::handleUserInput(const QString& text, const QString& mode)
     }
 
     // ---- 2. 自动模式：异步 LLM 路由 ----
-    // LLM 分类器不可用 → 直接走 3B 双 Pipeline
+    // LLM 分类器不可用 → 提示用户切换手动模式
     if (!m_routerReady)
     {
-        handleUncertainInput(text);
+        emit responseReady(tr("AI"),
+                           tr("Unable to parse your command."));
         return;
     }
 
@@ -197,80 +187,11 @@ void AIPipeline::dispatchByIntent(const RouterResult& route,
 
     case IntentType::Uncertain:
     default:
-        // LLM 也不确定 → 走 3B 双 Pipeline 并发
-        handleUncertainInput(text);
+        // LLM 也无法确定意图 → 提示用户
+        emit responseReady(tr("AI"),
+                           tr("Unable to parse your command."));
         break;
     }
-}
-
-void AIPipeline::handleUncertainInput(const QString& text)
-{
-    emit responseReady(tr("System"), tr("Analyzing with dual pipelines..."));
-
-    m_inDualPipeline = true;
-    m_dualPendingCount = 2;
-    m_pendingQAResult.reset();
-    m_pendingModelResult = ParsedCommand{};
-
-    // 并发启动 QA
-    if (m_ragReady)
-    {
-        m_ragPipeline->query(text);
-    }
-    else
-    {
-        // RAG 不可用，直接标记 QA 失败
-        m_dualPendingCount--;
-    }
-
-    // 并发启动 Modeling
-    if (m_modelingReady)
-    {
-        const QString sysPrompt = buildModelingSystemPrompt();
-        m_modelingProvider->sendMessage(text, m_history.toMessages(sysPrompt));
-    }
-    else
-    {
-        // Modeling 不可用，直接标记失败
-        m_dualPendingCount--;
-    }
-
-    // 如果两个都不行，直接输出错误
-    if (m_dualPendingCount <= 0)
-    {
-        m_inDualPipeline = false;
-        emit errorOccurred(tr("Error"),
-                           tr("Unable to process your request. "
-                              "Neither QA nor Modeling pipeline is available. "
-                              "Please open a document or check your configuration."));
-    }
-}
-
-void AIPipeline::tryResolveDualPipeline()
-{
-    m_inDualPipeline = false;
-
-    const bool qaOk   = m_pendingQAResult.has_value();
-    const bool modelOk = m_pendingModelResult.ok;
-
-    if (modelOk)
-    {
-        // Modeling 优先：直接执行
-        executeParsedCommand(m_pendingModelResult);
-        return;
-    }
-
-    if (qaOk)
-    {
-        // QA 降级
-        onRAGAnswer(m_pendingQAResult.value());
-        return;
-    }
-
-    // 都失败
-    emit errorOccurred(tr("Error"),
-                       tr("Unable to process your request. "
-                          "Please try rephrasing or switch to manual mode."));
 }
 
 // ============================================================================
@@ -311,18 +232,6 @@ void AIPipeline::handleUserInput_QA(const RouterResult& route, const QString& te
 
 void AIPipeline::onRAGAnswer(const RAGAnswer& answer)
 {
-    // 3B 双 Pipeline 模式：暂存结果，等待 Modeling 也完成
-    if (m_inDualPipeline)
-    {
-        m_pendingQAResult = answer;
-        m_dualPendingCount--;
-        if (m_dualPendingCount <= 0)
-        {
-            tryResolveDualPipeline();
-        }
-        return;
-    }
-
     // 记录 assistant 回复到对话历史
     m_history.pushAssistant(answer.answer);
 
@@ -389,18 +298,6 @@ void AIPipeline::onModelingProviderResponse(const QString& responseText)
     // 1. 解析 LLM 返回的 JSON
     const ParsedCommand cmd = m_bridge.parse(responseText);
 
-    // 3B 双 Pipeline 模式：暂存解析结果，不执行，等待 QA 也完成
-    if (m_inDualPipeline)
-    {
-        m_pendingModelResult = cmd;
-        m_dualPendingCount--;
-        if (m_dualPendingCount <= 0)
-        {
-            tryResolveDualPipeline();
-        }
-        return;
-    }
-
     if (!cmd.ok)
     {
         emit errorOccurred(tr("Parse Error"),
@@ -422,7 +319,8 @@ void AIPipeline::onModelingProviderResponse(const QString& responseText)
     if (!cmd.missingInputs.isEmpty())
     {
         QString missingList = cmd.missingInputs.join(QStringLiteral("、"));
-        QString prompt = tr("需要以下参数：%1\n请直接在对话中提供这些参数的值。")
+        QString prompt = tr("The following parameters are required: %1\n"
+                             "Please provide their values directly in the dialog.")
                              .arg(missingList);
 
         // 关键：将参数请求写入对话历史，使下一轮 LLM 调用能获取上下文
