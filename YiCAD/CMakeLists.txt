@@ -4,7 +4,7 @@ cmake_minimum_required (VERSION 3.10)
 PROJECT (YiCAD)
 
 # 加载Qt模块
-set(YICAD_USE_QT_MODULES Widgets Gui  Core  PrintSupport Designer Svg)
+set(YICAD_USE_QT_MODULES Widgets Gui  Core  PrintSupport Designer Svg Network)
 
 foreach(qtmod ${YICAD_USE_QT_MODULES})
     find_package(Qt5${qtmod} REQUIRED)
@@ -176,6 +176,11 @@ ${CMAKE_CURRENT_SOURCE_DIR}/src/plugins/*.cpp
 ${CMAKE_CURRENT_SOURCE_DIR}/src/plugins/filter/*.cpp)
 
 # #####################################################
+# =======================ai=============================
+file(GLOB AI_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/ai/*.h)
+file(GLOB AI_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/ai/*.cpp)
+
+# #####################################################
 # =======================UI============================
 file(GLOB UI_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/*.h
 ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/forms/*.h)
@@ -215,6 +220,8 @@ set (ALL_RSC_FILES ${ACTIONS_SOURCES}
                     ${MAIN_HEADERS}
                     ${PLUGINS_SOURCES} 
                     ${PLUGINS_HEADERS}
+                    ${AI_SOURCES}
+                    ${AI_HEADERS}
                     ${UI_SOURCES}
                     ${LIB_SOURCES} 
                     ${LIB_HEADERS}
@@ -284,6 +291,7 @@ src/kernel/persistence
 src/kernel/persistence/zipios++
 src/kernel/persistence/Meta
 src/main
+src/ai
 src/plugins
 src/plugins/intern
 src/ui
@@ -293,6 +301,11 @@ src/ui/forms)
 # 添加预处理器定义值
 Add_Definitions(-D_USE_MATH_DEFINES -D_ENABLE_EXTENDED_ALIGNED_STORAGE -DAPPDIR="YiCAD" -DVERSION="0.5.0.0-alpha")
 remove_definitions(-D_HAS_STD_BYTE)
+
+# MSVC: 强制源文件和执行字符集为 UTF-8，避免中文乱码
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
 #add_compile_definitions(/FI${mimalloc_INCLUDE_DIR}/mimalloc-override.h)
 add_link_options(/INCLUDE:mi_version)
 
@@ -380,6 +393,10 @@ INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/res/shaders/ DESTINATION ${CMAKE_R
 
 #install config file
 INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/support/config/ DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/ FILES_MATCHING PATTERN "*.*")
+
+# ai
+INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../README.md DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/ai/)
+INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/support/ai/ DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/ai/ FILES_MATCHING PATTERN "*.*")
 
 #structure files
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/ui" PREFIX "UIs" FILES ${UI_UIS_HEADERS})

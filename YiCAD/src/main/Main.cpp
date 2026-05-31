@@ -38,6 +38,7 @@
 #include "DmPatternList.h"
 #include "DmSettings.h"
 #include "DmSystem.h"
+#include "LLMSettingsService.h"
 #include "DmLineTypeTable.h"
 
 #include "ApplicationWindow.h"
@@ -77,6 +78,10 @@ int App_Run(int argc, char* argv[])
     QString prgDir(prgInfo.absolutePath());
     DMSETTINGS->init(
         app.organizationName(), app.applicationName());  // 初始应用程序设置
+
+    // 初始化 LLM 配置服务（用于 AI 功能）
+    LLMSettingsService::instance()->init(
+        app.organizationName(), app.applicationName());
     DMSYSTEM->init(app.applicationName(),
                    app.applicationVersion(),
                    XSTR(APPDIR),

@@ -75,6 +75,7 @@
 #include "UIBlockSaveAs.h"
 #include "UIDialogFactory.h"
 #include "UICurrentActivePen.h"
+#include "AIAssistant.h"
 
 #include "ActionLayersActivate.h"
 #include "ActionLayersFreeze.h"
@@ -253,8 +254,28 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
 	GuiDocumentView* view = m_pCurrentMdiWin->getDocumentView();
 
 	// 加载插件
+
+	// ===========================AI 助手按钮=========================
+	SARibbonButtonGroupWidget* rightGroup = m_pRibbon->rightButtonGroup();
+	if (rightGroup)
+	{
+		m_pActAI = createAction(tr("AI Assistant"), ":/ribbon/tabbar/ai.svg", "ai-assistant");
+		m_pAIAssistant = new AIAssistant(this, this);
+		connect(m_pActAI, &QAction::triggered, this, [this]() {
+			DmDocument* doc = nullptr;
+			GuiDocumentView* docView = nullptr;
+			if (m_pCurrentMdiWin)
+			{
+				doc = m_pCurrentMdiWin->getDocument();
+				docView = m_pCurrentMdiWin->getDocumentView();
+			}
+			m_pAIAssistant->show(doc, docView);
+		});
+		rightGroup->addAction(m_pActAI);
+	}
 	loadPlugins();
 }
+
 
 void ApplicationWindow::onStyleClicked(int id)
 {
