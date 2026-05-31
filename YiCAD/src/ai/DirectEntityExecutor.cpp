@@ -481,6 +481,8 @@ DmText* DirectEntityExecutor::createTextEntity(const QJsonObject& params, QStrin
     const double angleRad = angle * M_PI / 180.0;
 
     TextData textData(position, height, valign, halign, text, style, angleRad);
+    // 非左对齐时 DmText 使用 m_ptAlignment 定位，必须设置对齐点
+    textData.setAlignment(position);
     return new DmText(nullptr, textData);
 }
 

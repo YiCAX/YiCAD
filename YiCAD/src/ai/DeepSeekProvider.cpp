@@ -114,6 +114,8 @@ void DeepSeekProvider::sendMessage(const QString& userMessage,
         : buildRequestBody(model, allMessages, effectiveTemperature);
 
     // ---- 5. 发起 POST（流式模式） ----
+    qDebug().noquote() << "[AI] >>> POST" << url.toString();
+    qDebug().noquote() << "[AI] >>> Body:" << QString::fromUtf8(body);
     QNetworkReply* reply = m_networkManager->post(request, body);
 
     // 初始化流式状态
@@ -160,6 +162,8 @@ void DeepSeekProvider::onReplyFinished(QNetworkReply* reply)
     const int     statusCode  = reply->attribute(
         QNetworkRequest::HttpStatusCodeAttribute).toInt();
     const QByteArray body      = reply->readAll();
+    qDebug().noquote() << "[AI] <<< Response (HTTP" << statusCode << "):"
+                        << QString::fromUtf8(body);
     const QString     errorStr = reply->errorString();
 
     // ---- 情况 1：正常完成 ----
@@ -581,6 +585,7 @@ void DeepSeekProvider::extractCompleteJson()
                 if (parseError.error == QJsonParseError::NoError && doc.isObject())
                 {
                     // 发射该指令，从 buffer 中移除
+                    qDebug().noquote() << "[AI] <<< Complete JSON command:" << jsonStr;
                     emit commandReady(jsonStr);
                     m_accumulatedContent.remove(objStart, objLen);
 
@@ -677,6 +682,7 @@ void DeepSeekProvider::processSseChunk(const QByteArray& chunk)
 
         if (!deltaContent.isEmpty())
         {
+            qDebug().noquote() << "[AI] <<< SSE delta content:" << deltaContent;
             m_accumulatedContent += deltaContent;
             m_rawContent += deltaContent;
             // 每收到新内容就尝试提取完整 JSON 指令
@@ -684,6 +690,7 @@ void DeepSeekProvider::processSseChunk(const QByteArray& chunk)
         }
         if (!deltaReasoning.isEmpty())
         {
+            qDebug().noquote() << "[AI] <<< SSE delta reasoning:" << deltaReasoning;
             m_reasoningBuffer += deltaReasoning;
         }
 
