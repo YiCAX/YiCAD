@@ -8171,6 +8171,19 @@ Please provide their values directly in the dialog.</source>
         <source>Unable to parse your command.</source>
         <translation>无法解析你的指令</translation>
     </message>
+    <message>
+        <location filename="../src/ai/AIPipeline.cpp" line="195"/>
+        <source>Hello! I&apos;m YiCAD AI Assistant. I can help you with:
+• Q&amp;A: Ask me anything about YiCAD features and usage
+• Modeling: Describe what you want to draw or modify, and I&apos;ll execute it on the canvas
+
+Switch modes via the dropdown menu (Q&amp;A / Modeling / Auto), or just type your request in Auto mode.</source>
+        <translation>你好！我是 YiCAD AI 助手。我可以帮你：
+• 问答：询问 YiCAD 功能和使用方法
+• 建模：描述你想绘制或修改的内容，我会在画布上执行
+
+通过下拉菜单切换模式（问答 / 建模 / 自动），或直接在自动模式下输入你的需求。</translation>
+    </message>
 </context>
 <context>
     <name>AIDialog</name>

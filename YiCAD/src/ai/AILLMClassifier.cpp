@@ -32,14 +32,17 @@
 
 static const QString kClassifierSystemPrompt = QStringLiteral(
     "You are a CAD command classifier. Analyze the user's input and classify it "
-    "as exactly one of: QA, MODELING, MIXED.\n\n"
+    "as exactly one of: QA, MODELING, MIXED, SOCIAL.\n\n"
     "QA: The user is asking a question, seeking help, or wants to learn about a "
     "feature. Examples: \"how to draw a circle\", \"what is trim\", \"explain layers\"\n\n"
     "MODELING: The user wants to create, modify, or manipulate CAD entities. "
     "Examples: \"draw a circle\", \"move this line right\", \"delete the rectangle\"\n\n"
     "MIXED: The user wants both — perform an operation AND ask a question. "
     "Examples: \"delete this line and tell me how to draw an arc\"\n\n"
-    "Reply with exactly ONE word (QA, MODELING, or MIXED) followed by a confidence "
+    "SOCIAL: The user is greeting, thanking, making small talk, or sending a "
+    "non-task message. Examples: \"hello\", \"hi\", \"good morning\", \"thanks\", "
+    "\"how are you\", \"what can you do\"\n\n"
+    "Reply with exactly ONE word (QA, MODELING, MIXED, or SOCIAL) followed by a confidence "
     "score (0.0 to 1.0) on the next line.\n"
     "Example:\n"
     "MODELING\n"
@@ -190,6 +193,8 @@ IntentType AILLMClassifier::parseClassification(const QString& response)
         return IntentType::QA;
     if (upper.startsWith(QStringLiteral("MIX")))
         return IntentType::Mixed;
+    if (upper.startsWith(QStringLiteral("SOC")))
+        return IntentType::Social;
 
     // 如果第一行只有单词
     const QString firstLine = upper.split(QStringLiteral("\n")).first().trimmed();
@@ -199,6 +204,8 @@ IntentType AILLMClassifier::parseClassification(const QString& response)
         return IntentType::QA;
     if (firstLine == QStringLiteral("MIXED"))
         return IntentType::Mixed;
+    if (firstLine == QStringLiteral("SOCIAL"))
+        return IntentType::Social;
 
     return IntentType::Uncertain;
 }

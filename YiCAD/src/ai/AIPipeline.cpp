@@ -189,6 +189,17 @@ void AIPipeline::dispatchByIntent(const RouterResult& route,
         handleUserInput_QA(route, text);
         break;
 
+    case IntentType::Social:
+        m_lastResolvedIntent = IntentType::Social;
+        emit responseReady(tr("AI"),
+                           tr("Hello! I'm YiCAD AI Assistant. I can help you with:\n"
+                              "• Q&A: Ask me anything about YiCAD features and usage\n"
+                              "• Modeling: Describe what you want to draw or modify, "
+                              "and I'll execute it on the canvas\n\n"
+                              "Switch modes via the dropdown menu (Q&A / Modeling / Auto), "
+                              "or just type your request in Auto mode."));
+        break;
+
     case IntentType::Uncertain:
     default:
         // 上一轮建模缺少参数 → 用户可能在补充参数，续接到建模链路
