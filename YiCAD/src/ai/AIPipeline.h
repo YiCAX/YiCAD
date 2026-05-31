@@ -105,6 +105,9 @@ signals:
     void errorOccurred(const QString& sender, const QString& text);
 
 private slots:
+    // ---- 分类器回调 ----
+    void onClassificationFailed(const QString& reason);
+
     // ---- QA 链路回调 ----
     void onRAGAnswer(const RAGAnswer& answer);
     void onRAGError(const QString& error);

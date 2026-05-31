@@ -8167,7 +8167,12 @@ Please provide their values directly in the dialog.</source>
         <translation>绘图失败：%1</translation>
     </message>
     <message>
-        <location filename="../src/ai/AIPipeline.cpp" line="132"/>
+        <location filename="../src/ai/AIPipeline.cpp" line="134"/>
+        <source>AI features require an API key. Please configure it in AI Settings.</source>
+        <translation>AI 功能需要 API Key，请在 AI 设置中配置。</translation>
+    </message>
+    <message>
+        <location filename="../src/ai/AIPipeline.cpp" line="216"/>
         <source>Unable to parse your command.</source>
         <translation>无法解析你的指令</translation>
     </message>

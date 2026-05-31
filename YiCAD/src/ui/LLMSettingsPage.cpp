@@ -125,13 +125,6 @@ void LLMSettingsPage::setupUi()
 
     mainLayout->addLayout(apiKeyRow);
 
-    // ---- 底部提示 ----
-    auto* noteLabel = new QLabel(tr("Note: API Key uses XOR obfuscation (temporary).\n"
-                                    "Will be replaced with system-level secure storage (DPAPI/Keychain) in release."));
-    noteLabel->setWordWrap(true);
-    noteLabel->setStyleSheet("color: #888; font-size: 11px;");
-    mainLayout->addWidget(noteLabel);
-
     // ---- 按钮 ----
     auto* btnBox = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);

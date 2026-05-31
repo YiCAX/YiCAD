@@ -60,6 +60,10 @@ AIPipeline::AIPipeline(const QString& docsDir,
                               "Auto mode will be limited."));
     }
 
+    // 将分类器内部错误转发到用户可见的错误信号
+    connect(m_llmClassifier.get(), SIGNAL(classificationFailed(QString)),
+            this, SLOT(onClassificationFailed(QString)));
+
     // ---- 2. 初始化 RAG（加载知识库） ----
     m_ragReady = m_ragPipeline->initialize(docsDir, readmePath);
     if (!m_ragReady)
@@ -130,11 +134,11 @@ void AIPipeline::handleUserInput(const QString& text, const QString& mode)
     }
 
     // ---- 2. 自动模式：异步 LLM 路由 ----
-    // LLM 分类器不可用 → 提示用户切换手动模式
+    // LLM 分类器不可用 → 提示用户配置 API Key
     if (!m_routerReady)
     {
         emit responseReady(tr("AI"),
-                           tr("Unable to parse your command."));
+                           tr("AI features require an API key. Please configure it in AI Settings."));
         return;
     }
 
@@ -251,6 +255,11 @@ void AIPipeline::handleUserInput_QA(const RouterResult& route, const QString& te
                            .arg(static_cast<int>(route.confidence * 100)));
 
     m_ragPipeline->query(text);
+}
+
+void AIPipeline::onClassificationFailed(const QString& reason)
+{
+    emit errorOccurred(tr("Error"), reason);
 }
 
 void AIPipeline::onRAGAnswer(const RAGAnswer& answer)
