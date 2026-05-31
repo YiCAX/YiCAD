@@ -259,7 +259,7 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
 	SARibbonButtonGroupWidget* rightGroup = m_pRibbon->rightButtonGroup();
 	if (rightGroup)
 	{
-		m_pActAI = createAction(QObject::tr("AI Assistant"), ":/ribbon/tabbar/ai.svg", "ai-assistant");
+		m_pActAI = createAction(tr("AI Assistant"), ":/ribbon/tabbar/ai.svg", "ai-assistant");
 		m_pAIAssistant = new AIAssistant(this, this);
 		connect(m_pActAI, &QAction::triggered, this, [this]() {
 			DmDocument* doc = nullptr;

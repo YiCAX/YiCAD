@@ -2591,6 +2591,11 @@ This block cannot be inserted.</source>
 <context>
     <name>ApplicationWindow</name>
     <message>
+        <location filename="../src/main/ApplicationWindow.cpp" line="262"/>
+        <source>AI Assistant</source>
+        <translation>AI 助手</translation>
+    </message>
+    <message>
         <location filename="../src/main/ApplicationWindow.cpp" line="1283"/>
         <source>2 Points</source>
         <translation>两点</translation>
