@@ -54,6 +54,7 @@ class DmCircle;
 class DmPolyline;
 class DmArc;
 class DmEllipse;
+class DmText;
 
 // ============================================================================
 // 执行结果
@@ -116,6 +117,7 @@ private:
     ExecutorResult executeDrawRectangle(const ParsedCommand& cmd);
     ExecutorResult executeDrawEllipse(const ParsedCommand& cmd);
     ExecutorResult executeDrawArc(const ParsedCommand& cmd);
+    ExecutorResult executeDrawText(const ParsedCommand& cmd);
 
     // ---- 图元创建（纯工厂方法，不含 Transaction 管理） ----
 
@@ -139,6 +141,9 @@ private:
 
     /// @brief 从 params 创建 DmArc 实体
     static DmArc* createArcEntity(const QJsonObject& params, QString& errorOut);
+
+    /// @brief 从 params 创建 DmText 实体
+    DmText* createTextEntity(const QJsonObject& params, QString& errorOut);
 
     /// @brief 将 CommandIntent 映射为实体类型名（如 DrawLine → "DmLine"）
     static QString entityTypeName(CommandIntent intent);

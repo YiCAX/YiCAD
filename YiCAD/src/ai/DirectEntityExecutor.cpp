@@ -25,6 +25,9 @@
 #include "ArcData.h"
 #include "DmArc.h"
 #include "DmEllipse.h"
+#include "DmText.h"
+#include "DmTextStyle.h"
+#include "DmTextStyleTable.h"
 #include "DmEntity.h"
 #include "DmId.h"
 #include "DmLine.h"
@@ -70,6 +73,8 @@ ExecutorResult DirectEntityExecutor::execute(const ParsedCommand& cmd)
         return executeDrawEllipse(cmd);
     case CommandIntent::DrawArc:
         return executeDrawArc(cmd);
+    case CommandIntent::DrawText:
+        return executeDrawText(cmd);
 
     default: {
         ExecutorResult fail;
@@ -129,6 +134,9 @@ ExecutorResult DirectEntityExecutor::executeCompound(const ParsedCommand& cmd)
             break;
         case CommandIntent::DrawArc:
             entity = createArcEntity(step.params, stepError);
+            break;
+        case CommandIntent::DrawText:
+            entity = createTextEntity(step.params, stepError);
             break;
         default:
             t.rollback();
@@ -263,6 +271,22 @@ ExecutorResult DirectEntityExecutor::executeDrawArc(const ParsedCommand& cmd)
     return result;
 }
 
+ExecutorResult DirectEntityExecutor::executeDrawText(const ParsedCommand& cmd)
+{
+    ExecutorResult result;
+
+    QString err;
+    DmText* entity = createTextEntity(cmd.params, err);
+    if (!entity) {
+        result.success      = false;
+        result.errorMessage = tr("DirectEntityExecutor::draw_text -- %1").arg(err);
+        return result;
+    }
+
+    finalizeEntity(entity, tr("Create Text").toStdString(), QStringLiteral("DmText"), result);
+    return result;
+}
+
 // ============================================================================
 // 图元创建（纯工厂方法，不含 Transaction 管理）
 // ============================================================================
@@ -387,6 +411,79 @@ DmArc* DirectEntityExecutor::createArcEntity(const QJsonObject& params, QString&
     return new DmArc(nullptr, data);
 }
 
+DmText* DirectEntityExecutor::createTextEntity(const QJsonObject& params, QString& errorOut)
+{
+    // ---- 1. 提取必选参数 ----
+    DmVector position;
+    if (!extractPoint(params, QStringLiteral("position"), position, errorOut))
+        return nullptr;
+
+    double height = 0.0;
+    if (!extractDouble(params, QStringLiteral("height"), height, errorOut))
+        return nullptr;
+
+    QString text;
+    if (!params.contains(QStringLiteral("text"))) {
+        errorOut = tr("missing required param 'text'");
+        return nullptr;
+    }
+    text = params.value(QStringLiteral("text")).toString();
+    if (text.isEmpty()) {
+        errorOut = tr("param 'text' must be a non-empty string");
+        return nullptr;
+    }
+
+    // ---- 2. 提取可选参数 ----
+    double angle = 0.0;
+    extractDouble(params, QStringLiteral("angle"), angle, errorOut);
+    errorOut.clear(); // angle 可选，清空 extractDouble 可能设置的错误
+
+    // 水平对齐：left / center / right（默认 left）
+    ETextHorzMode halign = ETextHorzMode::kTextLeft;
+    if (params.contains(QStringLiteral("halign"))) {
+        const QString ha = params.value(QStringLiteral("halign")).toString().toLower();
+        if (ha == QStringLiteral("center"))
+            halign = ETextHorzMode::kTextCenter;
+        else if (ha == QStringLiteral("right"))
+            halign = ETextHorzMode::kTextRight;
+        else if (ha == QStringLiteral("mid"))
+            halign = ETextHorzMode::kTextMid;
+    }
+
+    // 垂直对齐：top / middle / bottom / baseline（默认 baseline）
+    ETextVertMode valign = ETextVertMode::kTextBase;
+    if (params.contains(QStringLiteral("valign"))) {
+        const QString va = params.value(QStringLiteral("valign")).toString().toLower();
+        if (va == QStringLiteral("top"))
+            valign = ETextVertMode::kTextTop;
+        else if (va == QStringLiteral("middle"))
+            valign = ETextVertMode::kTextVertMid;
+        else if (va == QStringLiteral("bottom"))
+            valign = ETextVertMode::kTextBottom;
+    }
+
+    // ---- 3. 获取文字样式 ----
+    DmTextStyle* style = nullptr;
+    if (m_doc) {
+        DmTextStyleTable* styleTable = m_doc->getTextStyleTable();
+        if (styleTable) {
+            style = styleTable->getActive();
+            if (!style) {
+                style = DmTextStyleTable::getDefaultStyle();
+            }
+        }
+    }
+    if (!style) {
+        style = DmTextStyleTable::getDefaultStyle();
+    }
+
+    // ---- 4. 构造 TextData 并创建 DmText ----
+    const double angleRad = angle * M_PI / 180.0;
+
+    TextData textData(position, height, valign, halign, text, style, angleRad);
+    return new DmText(nullptr, textData);
+}
+
 QString DirectEntityExecutor::entityTypeName(CommandIntent intent)
 {
     switch (intent) {
@@ -396,6 +493,7 @@ QString DirectEntityExecutor::entityTypeName(CommandIntent intent)
     case CommandIntent::DrawRectangle: return QStringLiteral("DmPolyline");
     case CommandIntent::DrawEllipse:   return QStringLiteral("DmEllipse");
     case CommandIntent::DrawArc:       return QStringLiteral("DmArc");
+    case CommandIntent::DrawText:      return QStringLiteral("DmText");
     default:                           return QStringLiteral("DmEntity");
     }
 }

@@ -171,6 +171,7 @@ private:
     QString m_lastUserText;       ///< 最近一次用户输入（调试用）
     QString m_lastMode;           ///< 最近一次模式（调试用）
     IntentType m_lastResolvedIntent = IntentType::QA; ///< 最近一次成功分发的意图
+    bool m_lastHadMissingInputs = false; ///< 上一轮建模是否缺少参数（用于自动模式续接）
 
     // ---- LLM 分类竞态保护 ----
     int m_classifySeq = 0;  ///< LLM 分类请求序列号（防止乱序回调）

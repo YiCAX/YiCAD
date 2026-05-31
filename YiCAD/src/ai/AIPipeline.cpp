@@ -191,6 +191,14 @@ void AIPipeline::dispatchByIntent(const RouterResult& route,
 
     case IntentType::Uncertain:
     default:
+        // 上一轮建模缺少参数 → 用户可能在补充参数，续接到建模链路
+        if (m_lastHadMissingInputs)
+        {
+            m_lastHadMissingInputs = false;
+            m_lastResolvedIntent = IntentType::Modeling;
+            handleUserInput_Modeling(route, text);
+            break;
+        }
         // LLM 也无法确定意图 → 提示用户
         emit responseReady(tr("AI"),
                            tr("Unable to parse your command."));
@@ -323,14 +331,19 @@ void AIPipeline::onCommandReady(const QString& commandJson)
                            tr("⚠ High-risk operation: %1").arg(cmd.message));
     }
 
-    // 3. 缺失输入 → 跳过执行，仅提示
+    // 3. 缺失输入 → 跳过执行，提示用户并提供上下文给下一轮
     if (!cmd.missingInputs.isEmpty())
     {
-        QString missingList = cmd.missingInputs.join(QStringLiteral(", "));
-        emit responseReady(tr("AI"),
-                           tr("Skipped: %1 (missing: %2)")
-                               .arg(cmd.message)
-                               .arg(missingList));
+        QString missingList = cmd.missingInputs.join(QStringLiteral("、"));
+        QString prompt = tr("The following parameters are required: %1\n"
+                             "Please provide their values directly in the dialog.")
+                             .arg(missingList);
+
+        // 关键：将参数请求写入对话历史，使下一轮 LLM 调用能获取上下文
+        m_history.pushAssistant(prompt);
+        m_lastHadMissingInputs = true;
+
+        emit responseReady(tr("AI"), prompt);
         return;
     }
 
@@ -379,6 +392,7 @@ void AIPipeline::onModelingProviderResponse(const QString& responseText)
 
         // 关键：将参数请求写入对话历史，使下一轮 LLM 调用能获取上下文
         m_history.pushAssistant(prompt);
+        m_lastHadMissingInputs = true;
 
         emit responseReady(tr("AI"), prompt);
         return;
@@ -443,7 +457,7 @@ QString AIPipeline::buildModelingSystemPrompt()
 
         "The JSON must have these fields:\n"
         "- intent: (string) one of: draw_point, draw_line, draw_circle, "
-        "draw_rectangle, draw_ellipse, draw_arc\n"
+        "draw_rectangle, draw_ellipse, draw_arc, draw_text\n"
         "- selection: (object) with \"mode\" field. mode values:\n"
         "    \"none\" (for creating new entities),\n"
         "    \"current_selection\" (use currently selected entities),\n"
@@ -456,6 +470,10 @@ QString AIPipeline::buildModelingSystemPrompt()
         "    position: [x, y] (for draw_point)\n"
         "    center: [x, y], majorRadius: number, minorRadius: number (for draw_ellipse)\n"
         "    center: [x, y], radius: number, start_angle: number, end_angle: number (angles in degrees, for draw_arc)\n"
+        "    position: [x, y], height: number, text: string (for draw_text)\n"
+        "    angle: number (optional, rotation in degrees, for draw_text)\n"
+        "    halign: \"left\" | \"center\" | \"right\" (optional, default left, for draw_text)\n"
+        "    valign: \"top\" | \"middle\" | \"bottom\" | \"baseline\" (optional, default baseline, for draw_text)\n"
         "- missing_inputs: (array of strings) inputs that need more information\n"
         "- needs_confirmation: (boolean) reserved for future use\n"
         "- message: (string) human-readable description of the operation\n\n"
@@ -469,7 +487,13 @@ QString AIPipeline::buildModelingSystemPrompt()
         "4. Use only the intent values listed above.\n"
         "5. For complex objects composed of multiple primitives (tables, doors, "
         "stairs, gears), output ONE JSON object per entity. Do NOT use draw_compound "
-        "or steps arrays — each entity is its own top-level JSON object.\n\n"
+        "or steps arrays — each entity is its own top-level JSON object.\n"
+        "6. MULTI-TURN: If the conversation history shows you previously asked "
+        "for missing parameters (missing_inputs was non-empty), and the user's "
+        "latest message provides those values, combine them with the original "
+        "request and output the COMPLETE command with all parameters filled in. "
+        "Look at the previous user message for the original intent and entity "
+        "description.\n\n"
 
         "Example for \"draw a table\":\n"
         "{\"intent\":\"draw_rectangle\",\"message\":\"Drawing table top\",\"selection\":{\"mode\":\"none\"},\"params\":{\"corner1\":[0,0],\"corner2\":[120,60]},"
@@ -508,6 +532,7 @@ QString AIPipeline::executeCommand(const ParsedCommand& cmd)
     case CommandIntent::DrawRectangle:
     case CommandIntent::DrawArc:
     case CommandIntent::DrawEllipse:
+    case CommandIntent::DrawText:
     {
         if (!m_drawExecutor)
         {
