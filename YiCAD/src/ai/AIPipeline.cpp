@@ -89,6 +89,10 @@ AIPipeline::AIPipeline(const QString& docsDir,
             this, &AIPipeline::onModelingProviderResponse);
     connect(m_modelingProvider.get(), &DeepSeekProvider::errorOccurred,
             this, &AIPipeline::onModelingProviderError);
+
+    // ---- 6. 连接流式增量指令信号 ----
+    connect(m_modelingProvider.get(), &DeepSeekProvider::commandReady,
+            this, &AIPipeline::onCommandReady);
 }
 
 AIPipeline::~AIPipeline() = default;
@@ -289,12 +293,62 @@ void AIPipeline::handleUserInput_Modeling(const RouterResult& route, const QStri
     m_history.pushSystem(buildModelingSystemPrompt());
 
     // 发送给 LLM：传入历史消息数组（含 system + 前文）
+    m_streamingReceived = false;
     const QString sysPrompt = buildModelingSystemPrompt();
     m_modelingProvider->sendMessage(text, m_history.toMessages(sysPrompt));
 }
 
+void AIPipeline::onCommandReady(const QString& commandJson)
+{
+    // 流式增量执行：每收到一个完整 JSON 指令就立即解析并执行
+    m_streamingReceived = true;
+
+    // 1. 解析 JSON
+    const ParsedCommand cmd = m_bridge.parse(commandJson);
+
+    if (!cmd.ok)
+    {
+        // 解析失败，记录警告但不阻断（后续指令可能正常）
+        emit errorOccurred(tr("Stream Parse"),
+                           tr("Failed to parse streaming command: %1\nJSON: %2")
+                               .arg(cmd.errorMessage)
+                               .arg(commandJson.left(200)));
+        return;
+    }
+
+    // 2. 高风险操作提示（不阻断执行）
+    if (cmd.needsConfirmation)
+    {
+        emit responseReady(tr("System"),
+                           tr("⚠ High-risk operation: %1").arg(cmd.message));
+    }
+
+    // 3. 缺失输入 → 跳过执行，仅提示
+    if (!cmd.missingInputs.isEmpty())
+    {
+        QString missingList = cmd.missingInputs.join(QStringLiteral(", "));
+        emit responseReady(tr("AI"),
+                           tr("Skipped: %1 (missing: %2)")
+                               .arg(cmd.message)
+                               .arg(missingList));
+        return;
+    }
+
+    // 4. 直接执行（不包 Transaction，每个指令独立提交）
+    const QString execResult = executeCommand(cmd);
+    emit responseReady(tr("AI"), execResult);
+}
+
 void AIPipeline::onModelingProviderResponse(const QString& responseText)
 {
+    // 若已通过 commandReady 收到流式指令，跳过 responseReceived 的全文解析
+    // （全文是多个 JSON 对象的拼接，m_bridge.parse 只能解析第一个，其余已通过 commandReady 处理）
+    if (m_streamingReceived)
+    {
+        m_streamingReceived = false;
+        return;
+    }
+
     // 1. 解析 LLM 返回的 JSON
     const ParsedCommand cmd = m_bridge.parse(responseText);
 
@@ -381,8 +435,11 @@ QString AIPipeline::buildModelingSystemPrompt()
 
     prompt += QStringLiteral(
         "You are YiCAD's CAD modeling command parser.\n"
-        "Convert natural language CAD commands into a single JSON object.\n"
-        "Output ONLY the JSON object, no markdown fences, no explanations.\n\n"
+        "Convert natural language CAD commands into one or more JSON objects.\n"
+        "Output each entity as a SEPARATE JSON object, concatenated directly "
+        "(no commas between objects, no markdown fences, no explanations).\n"
+        "Each object will be executed immediately as it arrives — entities appear "
+        "one by one on the canvas.\n\n"
 
         "The JSON must have these fields:\n"
         "- intent: (string) one of: draw_point, draw_line, draw_circle, "
@@ -393,11 +450,11 @@ QString AIPipeline::buildModelingSystemPrompt()
         "    \"last_created\" (use the most recently created entity),\n"
         "    \"all\" (operate on all entities)\n"
         "- params: (object) geometric parameters. Use these keys:\n"
-        "    center: [x, y], radius: number\n"
-        "    start: [x, y], end: [x, y]\n"
-        "    corner1: [x, y], corner2: [x, y]\n"
-        "    offset: [dx, dy], distance: number\n"
-        "    point: [x, y]\n"
+        "    center: [x, y], radius: number (for draw_circle)\n"
+        "    start: [x, y], end: [x, y] (for draw_line)\n"
+        "    corner1: [x, y], corner2: [x, y] (for draw_rectangle)\n"
+        "    position: [x, y] (for draw_point)\n"
+        "    center: [x, y], majorRadius: number, minorRadius: number (for draw_ellipse)\n"
         "- missing_inputs: (array of strings) inputs that need more information\n"
         "- needs_confirmation: (boolean) reserved for future use\n"
         "- message: (string) human-readable description of the operation\n\n"
@@ -408,33 +465,20 @@ QString AIPipeline::buildModelingSystemPrompt()
         "\"current_selection\" and tell user in message.\n"
         "3. If coordinates or points are unspecified, list them in missing_inputs "
         "AND clearly state what is missing in the message field.\n"
-        "4. Use only the intent values listed above.\n\n"
+        "4. Use only the intent values listed above.\n"
+        "5. For complex objects composed of multiple primitives (tables, doors, "
+        "stairs, gears), output ONE JSON object per entity. Do NOT use draw_compound "
+        "or steps arrays — each entity is its own top-level JSON object.\n\n"
 
-        "COMPOUND COMMANDS:\n"
-        "- intent: \"draw_compound\" — create multiple entities as one atomic operation.\n"
-        "  Use this when the user asks for complex objects composed of multiple primitives\n"
-        "  (e.g., tables, doors, stairs, gears). The JSON must include a \"steps\" array.\n\n"
+        "Example for \"draw a table\":\n"
+        "{\"intent\":\"draw_rectangle\",\"message\":\"Drawing table top\",\"selection\":{\"mode\":\"none\"},\"params\":{\"corner1\":[0,0],\"corner2\":[120,60]},"
+        "\"missing_inputs\":[],\"needs_confirmation\":false}\n"
+        "{\"intent\":\"draw_line\",\"message\":\"Drawing leg 1\",\"selection\":{\"mode\":\"none\"},\"params\":{\"start\":[10,60],\"end\":[10,100]},"
+        "\"missing_inputs\":[],\"needs_confirmation\":false}\n"
+        "{\"intent\":\"draw_line\",\"message\":\"Drawing leg 2\",\"selection\":{\"mode\":\"none\"},\"params\":{\"start\":[110,60],\"end\":[110,100]},"
+        "\"missing_inputs\":[],\"needs_confirmation\":false}\n\n"
 
-        "  \"steps\": (array) list of drawing steps. Each step is an object with:\n"
-        "    - \"intent\": one of draw_point, draw_line, draw_circle, draw_rectangle, draw_ellipse\n"
-        "    - \"params\": same parameter format as the corresponding single command\n\n"
-
-        "  IMPORTANT: all steps execute as ONE atomic unit (single undo/redo).\n\n"
-
-        "  Example for \"draw a table\":\n"
-        "  {\n"
-        "    \"intent\": \"draw_compound\",\n"
-        "    \"message\": \"Drawing a table with legs\",\n"
-        "    \"selection\": {\"mode\": \"none\"},\n"
-        "    \"params\": {},\n"
-        "    \"steps\": [\n"
-        "      {\"intent\": \"draw_rectangle\", \"params\": {\"corner1\": [0,0], \"corner2\": [120,60]}},\n"
-        "      {\"intent\": \"draw_line\", \"params\": {\"start\": [10,60], \"end\": [10,100]}},\n"
-        "      ...\n"
-        "    ]\n"
-        "  }\n\n"
-
-        "Output the JSON object only, no other text.");
+        "Output the JSON objects only, no other text.");
 
     return prompt;
 }

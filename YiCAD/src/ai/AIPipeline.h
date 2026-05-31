@@ -113,6 +113,13 @@ private slots:
     void onModelingProviderResponse(const QString& responseText);
     void onModelingProviderError(const QString& error);
 
+    // ---- 流式增量指令回调 ----
+    /// @brief 接收 DeepSeekProvider 流式提取的单个完整 JSON 指令
+    /// @param commandJson 完整的 JSON 命令字符串（单个 {…} 对象）
+    ///
+    /// 每收到一个完整指令即解析执行，不等流结束。
+    void onCommandReady(const QString& commandJson);
+
 private:
     // ---- 意图分发 ----
     /// @brief 根据路由结果分发到 QA / Modeling / Mixed / Uncertain 链路
@@ -160,6 +167,7 @@ private:
     bool m_routerReady  = false;  ///< LLM 分类器是否可用
     bool m_ragReady     = false;  ///< RAG 知识库是否已索引
     bool m_modelingReady = false; ///< 建模链路是否可用（doc + docView 均非空）
+    bool m_streamingReceived = false; ///< 本次请求是否已通过 commandReady 收到流式指令
     QString m_lastUserText;       ///< 最近一次用户输入（调试用）
     QString m_lastMode;           ///< 最近一次模式（调试用）
     IntentType m_lastResolvedIntent = IntentType::QA; ///< 最近一次成功分发的意图

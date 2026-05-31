@@ -37,10 +37,12 @@
 DeepSeekProvider::DeepSeekProvider(QObject* parent)
     : QObject(parent)
     , m_networkManager(new QNetworkAccessManager(this))
+    , m_silenceTimer(new QTimer(this))
 {
-    // 连接 finished 信号到处理槽
-    connect(m_networkManager, &QNetworkAccessManager::finished,
-            this, &DeepSeekProvider::onReplyFinished);
+    // 静默超时定时器：单次触发，每次 readyRead 重置
+    m_silenceTimer->setSingleShot(true);
+    connect(m_silenceTimer, &QTimer::timeout,
+            this, &DeepSeekProvider::onSilenceTimeout);
 }
 
 DeepSeekProvider::~DeepSeekProvider() = default;
@@ -111,16 +113,26 @@ void DeepSeekProvider::sendMessage(const QString& userMessage,
         ? buildRequestBody(model, allMessages, systemPrompt, effectiveTemperature, maxTokens)
         : buildRequestBody(model, allMessages, effectiveTemperature);
 
-    // ---- 5. 发起 POST ----
+    // ---- 5. 发起 POST（流式模式） ----
     QNetworkReply* reply = m_networkManager->post(request, body);
 
-    // 兜底超时（与 setTransferTimeout 双保险）
-    QTimer::singleShot(timeoutSecs * 1000 + 500, reply, [reply]() {
-        if (reply && reply->isRunning())
-        {
-            reply->abort();
-        }
+    // 初始化流式状态
+    m_streamBuffer.clear();
+    m_accumulatedContent.clear();
+    m_rawContent.clear();
+    m_reasoningBuffer.clear();
+    m_currentReply = reply;
+
+    // 按 reply 连接流式信号（不使用 manager 级 finished）
+    connect(reply, &QNetworkReply::readyRead,
+            this, &DeepSeekProvider::onReadyRead);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        onReplyFinished(reply);
     });
+
+    // 启动静默超时检测
+    m_silenceTimer->setInterval(timeoutSecs * 1000);
+    m_silenceTimer->start();
 }
 
 // ---------------------------------------------------------------------------
@@ -134,64 +146,88 @@ void DeepSeekProvider::onReplyFinished(QNetworkReply* reply)
         return;
     }
 
-    // reply 将在本函数返回后由 Qt 自动调度删除（deleteLater）
+    // 防御性检查：只处理当前活跃的流式 reply
+    if (reply != m_currentReply)
+    {
+        reply->deleteLater();
+        return;
+    }
+
+    // 停止静默超时检测
+    m_silenceTimer->stop();
+    m_currentReply.clear();
 
     const int     statusCode  = reply->attribute(
         QNetworkRequest::HttpStatusCodeAttribute).toInt();
     const QByteArray body      = reply->readAll();
     const QString     errorStr = reply->errorString();
 
-    // ---- 情况 1：网络层错误（非 HTTP 错误，如 DNS/连接失败） ----
-    if (reply->error() != QNetworkReply::NoError)
+    // ---- 情况 1：正常完成 ----
+    if (reply->error() == QNetworkReply::NoError)
     {
-        // 如果有 HTTP 状态码，说明是服务端返回的错误
-        if (statusCode > 0)
+        // 流结束已由 processSseChunk 处理（finish_reason / [DONE]），
+        // 此处仅做兜底：若流式解析未产出任何内容，尝试非流式回退解析
+        if (m_accumulatedContent.isEmpty() && m_reasoningBuffer.isEmpty() && !body.isEmpty())
         {
-            // 尝试解析 DeepSeek 错误 JSON 格式
-            QString deepseekError;
-            if (parseErrorResponse(body, deepseekError))
+            QString content;
+            if (parseResponseContent(body, content))
             {
-                emit errorOccurred(tr("DeepSeek API error (HTTP %1): %2")
-                                    .arg(statusCode)
-                                    .arg(deepseekError));
+                emit responseReceived(content);
             }
-            else
-            {
-                // 返回非 JSON 错误（如 HTML 页面）
-                QString preview = QString::fromUtf8(body.left(300));
-                emit errorOccurred(tr("HTTP %1: %2")
-                                    .arg(statusCode)
-                                    .arg(preview.isEmpty() ? errorStr : preview));
-            }
+        }
+        reply->deleteLater();
+        return;
+    }
+
+    // ---- 情况 2：操作被取消（超时 abort） ----
+    if (reply->error() == QNetworkReply::OperationCanceledError)
+    {
+        if (!m_rawContent.isEmpty())
+        {
+            // 已有部分内容 — 返回已累积内容 + 截断警告
+            emit responseReceived(m_rawContent.trimmed()
+                                  + tr("\n\n[⚠ Request cancelled before completion]"));
+        }
+        else if (!m_reasoningBuffer.isEmpty())
+        {
+            emit responseReceived(m_reasoningBuffer
+                                  + tr("\n\n[⚠ Request cancelled before completion]"));
         }
         else
         {
-            // 纯网络错误：无法连接、超时、DNS 等
-            emit errorOccurred(tr("Network request failed: %1").arg(errorStr));
+            // 完全无数据 — 静默超时
+            emit errorOccurred(
+                tr("Request timed out (no data received within the timeout period). "
+                   "Please try simplifying your request or increasing the timeout setting."));
         }
         reply->deleteLater();
         return;
     }
 
-    // ---- 情况 2：HTTP 200，解析正常响应 ----
-    if (statusCode != 200)
+    // ---- 情况 3：网络/HTTP 错误（保持现有逻辑） ----
+    if (statusCode > 0)
     {
-        emit errorOccurred(tr("Unknown status code %1").arg(statusCode));
-        reply->deleteLater();
-        return;
-    }
-
-    QString content;
-    if (parseResponseContent(body, content))
-    {
-        emit responseReceived(content);
+        // 尝试解析 DeepSeek 错误 JSON 格式
+        QString deepseekError;
+        if (parseErrorResponse(body, deepseekError))
+        {
+            emit errorOccurred(tr("DeepSeek API error (HTTP %1): %2")
+                                .arg(statusCode)
+                                .arg(deepseekError));
+        }
+        else
+        {
+            // 返回非 JSON 错误（如 HTML 页面）
+            QString preview = QString::fromUtf8(body.left(300));
+            emit errorOccurred(tr("HTTP %1: %2")
+                                .arg(statusCode)
+                                .arg(preview.isEmpty() ? errorStr : preview));
+        }
     }
     else
     {
-        // 输出原始响应用于排查
-        const QString preview = QString::fromUtf8(body.left(500));
-        emit errorOccurred(tr("Invalid response format: unable to parse AI reply content.\n"
-                              "Raw response preview: %1").arg(preview));
+        // 纯网络错误：无法连接、DNS 等
+        emit errorOccurred(tr("Network request failed: %1").arg(errorStr));
     }
 
     reply->deleteLater();
@@ -221,7 +257,7 @@ QByteArray DeepSeekProvider::buildRequestBody(const QString& model,
     root["model"]       = model;
     root["messages"]    = messages;
     root["temperature"] = temperature;
-    root["stream"]      = false;
+    root["stream"]      = true;
 
     QJsonDocument doc(root);
     return doc.toJson(QJsonDocument::Compact);
@@ -244,7 +280,7 @@ QByteArray DeepSeekProvider::buildRequestBody(const QString& model,
     root["model"]       = model;
     root["messages"]    = messagesJson;
     root["temperature"] = temperature;
-    root["stream"]      = false;
+    root["stream"]      = true;
 
     QJsonDocument doc(root);
     return doc.toJson(QJsonDocument::Compact);
@@ -279,7 +315,7 @@ QByteArray DeepSeekProvider::buildRequestBody(const QString& model,
     root["model"]       = model;
     root["messages"]    = messagesJson;
     root["temperature"] = temperature;
-    root["stream"]      = false;
+    root["stream"]      = true;
 
     if (maxTokens > 0)
     {
@@ -384,4 +420,286 @@ bool DeepSeekProvider::parseErrorResponse(const QByteArray& responseData,
     }
 
     return true;
+}
+
+// ---------------------------------------------------------------------------
+// SSE 流式解析
+// ---------------------------------------------------------------------------
+
+bool DeepSeekProvider::parseSseDelta(const QByteArray& json,
+                                     QString& outContent,
+                                     QString* outReasoning)
+{
+    // 解析格式: {"choices":[{"delta":{"content":"...","reasoning_content":"..."},"finish_reason":null}]}
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(json, &parseError);
+    if (parseError.error != QJsonParseError::NoError)
+    {
+        return false;
+    }
+
+    const QJsonObject root = doc.object();
+    const QJsonArray choices = root["choices"].toArray();
+    if (choices.isEmpty())
+    {
+        return false;
+    }
+
+    const QJsonObject firstChoice = choices[0].toObject();
+    const QJsonObject delta = firstChoice["delta"].toObject();
+
+    // 1. 提取 content 增量
+    if (delta.contains("content"))
+    {
+        const QJsonValue contentVal = delta["content"];
+        if (contentVal.isString())
+        {
+            outContent = contentVal.toString();
+        }
+    }
+
+    // 2. 提取 reasoning_content 增量（推理模型思维链）
+    if (outReasoning && delta.contains("reasoning_content"))
+    {
+        const QJsonValue reasoningVal = delta["reasoning_content"];
+        if (reasoningVal.isString())
+        {
+            *outReasoning = reasoningVal.toString();
+        }
+    }
+
+    return true;
+}
+
+void DeepSeekProvider::onReadyRead()
+{
+    QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply || reply != m_currentReply)
+    {
+        return;
+    }
+
+    // 重置静默超时
+    m_silenceTimer->start();
+
+    // 读取新数据追加到行缓冲
+    QByteArray newData = reply->readAll();
+    m_streamBuffer.append(newData);
+
+    // 标准化换行符：\r\n 和 \r 统一转为 \n
+    m_streamBuffer.replace("\r\n", "\n");
+    m_streamBuffer.replace('\r', '\n');
+
+    // 按 "\n\n" 分割 SSE 帧，最后一段为不完整尾部
+    while (true)
+    {
+        const int idx = m_streamBuffer.indexOf("\n\n");
+        if (idx < 0)
+        {
+            break;
+        }
+
+        const QByteArray frame = m_streamBuffer.left(idx);
+        m_streamBuffer.remove(0, idx + 2);  // 移除已处理的帧 + 分隔符
+
+        if (!frame.isEmpty())
+        {
+            processSseChunk(frame);
+        }
+    }
+}
+
+void DeepSeekProvider::onSilenceTimeout()
+{
+    if (m_currentReply && m_currentReply->isRunning())
+    {
+        m_currentReply->abort();
+        // abort 触发 finished → onReplyFinished 统一处理取消逻辑
+    }
+}
+
+void DeepSeekProvider::extractCompleteJson()
+{
+    // 括号深度扫描：从 m_accumulatedContent 中提取完整 JSON 对象
+    // 每当检测到一个 { } 平衡闭合的顶层 JSON 对象，解析并发射 commandReady，
+    // 然后从 buffer 前端移除，继续扫描。
+
+    int depth = 0;
+    int objStart = -1;
+    bool inString = false;
+    bool escapeNext = false;
+
+    const int len = m_accumulatedContent.length();
+
+    for (int i = 0; i < len; ++i)
+    {
+        const QChar ch = m_accumulatedContent.at(i);
+
+        if (escapeNext)
+        {
+            escapeNext = false;
+            continue;
+        }
+
+        if (ch == QLatin1Char('\\') && inString)
+        {
+            escapeNext = true;
+            continue;
+        }
+
+        if (ch == QLatin1Char('"'))
+        {
+            inString = !inString;
+            continue;
+        }
+
+        if (inString)
+        {
+            continue;
+        }
+
+        if (ch == QLatin1Char('{'))
+        {
+            if (depth == 0)
+            {
+                objStart = i;
+            }
+            ++depth;
+        }
+        else if (ch == QLatin1Char('}'))
+        {
+            --depth;
+            if (depth == 0 && objStart >= 0)
+            {
+                // 找到一个完整 JSON 对象
+                const int objLen = i - objStart + 1;
+                const QString jsonStr = m_accumulatedContent.mid(objStart, objLen);
+
+                // 验证是否为合法 JSON
+                QJsonParseError parseError;
+                QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8(), &parseError);
+                if (parseError.error == QJsonParseError::NoError && doc.isObject())
+                {
+                    // 发射该指令，从 buffer 中移除
+                    emit commandReady(jsonStr);
+                    m_accumulatedContent.remove(objStart, objLen);
+
+                    // 递归继续扫描（buffer 已变，重新开始）
+                    extractCompleteJson();
+                    return;
+                }
+
+                // JSON 不合法（可能是字符串中的假括号匹配），重置，继续扫描
+                objStart = -1;
+            }
+            else if (depth < 0)
+            {
+                // 多余的 }，重置深度（容错）
+                depth = 0;
+                objStart = -1;
+            }
+        }
+    }
+}
+
+void DeepSeekProvider::processSseChunk(const QByteArray& chunk)
+{
+    // 去掉前缀空白，按 "\n" 分割为行
+    const QByteArray trimmed = chunk.trimmed();
+    if (trimmed.isEmpty())
+    {
+        return;
+    }
+
+    const QList<QByteArray> lines = trimmed.split('\n');
+    for (const QByteArray& line : lines)
+    {
+        const QByteArray trimmedLine = line.trimmed();
+
+        // SSE 注释行（以 ":" 开头）
+        if (trimmedLine.startsWith(':') && !trimmedLine.startsWith("data:"))
+        {
+            continue;
+        }
+
+        // "data: [DONE]" — 流结束信号
+        if (trimmedLine == "data: [DONE]")
+        {
+            // 先尝试提取残留内容中的完整 JSON 指令
+            extractCompleteJson();
+
+            // 发射完整累积内容（供只监听 responseReceived 的消费者，如分类器）
+            // 若所有内容已被 commandReady 提取，至少发射空串标记流结束
+            const QString finalContent = m_rawContent.trimmed();
+            if (!finalContent.isEmpty())
+            {
+                emit responseReceived(finalContent);
+            }
+            return;
+        }
+
+        // 非 "data:" 前缀的行 → 跳过
+        if (!trimmedLine.startsWith("data:"))
+        {
+            continue;
+        }
+
+        // 提取 payload：跳过 "data:"（5 个字符）
+        QByteArray payload = trimmedLine.mid(5);
+
+        // SSE 规范允许 "data:" 后跟一个可选空格
+        if (payload.startsWith(' '))
+        {
+            payload = payload.mid(1);
+        }
+
+        if (payload.isEmpty())
+        {
+            continue;
+        }
+
+        // 解析 JSON
+        QJsonParseError parseError;
+        QJsonDocument doc = QJsonDocument::fromJson(payload, &parseError);
+        if (parseError.error != QJsonParseError::NoError)
+        {
+            // 单帧损坏，跳过
+            continue;
+        }
+
+        // 提取 delta 内容
+        QString deltaContent;
+        QString deltaReasoning;
+        if (!parseSseDelta(payload, deltaContent, &deltaReasoning))
+        {
+            continue;
+        }
+
+        if (!deltaContent.isEmpty())
+        {
+            m_accumulatedContent += deltaContent;
+            m_rawContent += deltaContent;
+            // 每收到新内容就尝试提取完整 JSON 指令
+            extractCompleteJson();
+        }
+        if (!deltaReasoning.isEmpty())
+        {
+            m_reasoningBuffer += deltaReasoning;
+        }
+
+        // 检查 finish_reason
+        const QJsonObject root = doc.object();
+        const QJsonArray choices = root["choices"].toArray();
+        if (!choices.isEmpty())
+        {
+            const QJsonObject firstChoice = choices[0].toObject();
+            const QString finishReason = firstChoice["finish_reason"].toString();
+
+            if (finishReason == QLatin1String("stop") || finishReason == QLatin1String("length"))
+            {
+                // 提取残留内容中的完整 JSON 指令（[DONE] 随后做最终清理）
+                extractCompleteJson();
+            }
+        }
+    }
 }

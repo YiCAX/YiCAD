@@ -41,6 +41,7 @@
 #define DEEPSEEKPROVIDER_H
 
 #include <QObject>
+#include <QPointer>
 #include <QString>
 #include <QVector>
 
@@ -48,6 +49,7 @@ struct MessageEntry;
 
 class QNetworkAccessManager;
 class QNetworkReply;
+class QTimer;
 
 class DeepSeekProvider : public QObject
 {
@@ -90,9 +92,15 @@ public:
                      int maxTokens);
 
 signals:
-    /// @brief 成功收到 AI 回复
+    /// @brief 成功收到 AI 回复（流结束后一次性发射，作为兜底）
     /// @param [in] responseText AI 返回的文本内容
     void responseReceived(const QString& responseText);
+
+    /// @brief 流式接收过程中检测到完整 JSON 指令（边收边发射）
+    /// @param [in] commandJson 完整的 JSON 命令字符串（单个 {…} 对象）
+    ///
+    /// 连接到该信号可实现增量执行：每个指令到达即执行，无需等待全流结束。
+    void commandReady(const QString& commandJson);
 
     /// @brief 请求过程中发生错误
     /// @param [in] errorMessage 人类可读的错误描述
@@ -102,6 +110,12 @@ private slots:
     /// @brief 处理网络回复完成事件
     /// @param [in] reply 完成的网络回复对象
     void onReplyFinished(QNetworkReply* reply);
+
+    /// @brief 处理流式响应的增量数据到达
+    void onReadyRead();
+
+    /// @brief 静默超时回调，abort 当前流式请求
+    void onSilenceTimeout();
 
 private:
     /// @brief 构建 Chat Completions 请求体 JSON（单条消息，无历史）
@@ -149,8 +163,34 @@ private:
     static bool parseErrorResponse(const QByteArray& responseData,
                                    QString& outError);
 
+    /// @brief 从 SSE delta JSON 中提取 content 和 reasoning_content 增量
+    /// @param [in]  json         delta 对象的 JSON 字节数组
+    /// @param [out] outContent   提取的 content 增量
+    /// @param [out] outReasoning 提取的 reasoning_content 增量（可为 nullptr）
+    /// @return true JSON 解析成功
+    static bool parseSseDelta(const QByteArray& json,
+                              QString& outContent,
+                              QString* outReasoning);
+
+    /// @brief 解析单个 SSE 帧（以 \n\n 分隔的完整数据块）
+    /// @param [in] chunk SSE 帧字节数组（不含帧分隔符）
+    void processSseChunk(const QByteArray& chunk);
+
+    /// @brief 从累积内容中提取完整 JSON 对象（括号深度扫描）
+    ///
+    /// 扫描 m_accumulatedContent，检测第一个 { } 平衡闭合的 JSON 子串，
+    /// 从 buffer 中移除并发射 commandReady。
+    /// 字符串内的括号通过反斜杠转义和引号状态机正确处理。
+    void extractCompleteJson();
+
 private:
     QNetworkAccessManager* m_networkManager;  ///< Qt 网络管理器
+    QByteArray m_streamBuffer;                ///< SSE 行缓冲（跨 readyRead 累积不完整帧）
+    QString m_accumulatedContent;             ///< 累积的 model content 增量文本（会被 extractCompleteJson 消费）
+    QString m_rawContent;                     ///< 完整累积文本（不被消费，[DONE] 时完整发射）
+    QString m_reasoningBuffer;                ///< 累积的 reasoning_content 增量文本
+    QTimer* m_silenceTimer;                   ///< 静默超时定时器
+    QPointer<QNetworkReply> m_currentReply;   ///< 当前流式 reply（QPointer 自动置 null）
 };
 
 #endif // DEEPSEEKPROVIDER_H

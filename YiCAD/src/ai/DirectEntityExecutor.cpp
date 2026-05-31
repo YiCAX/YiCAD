@@ -436,6 +436,7 @@ void DirectEntityExecutor::finalizeEntity(DmEntity*          entity,
     t.start();
 
     entity->setDocument(m_doc);       // 设置文档、活动图层、活动画笔
+    entity->update();
     m_doc->getEntityTable()->add(entity);  // add 自动创建 EntityTableAddCmd，纳入 Undo/Redo
 
     t.commit();
